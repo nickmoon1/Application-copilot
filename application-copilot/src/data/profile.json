@@ -1,0 +1,25 @@
+{
+  "name": "Nickmoon Mware",
+  "email": "moonmware@gmail.com",
+  "phone": "(803) 457-9978",
+  "location": "Dallas, TX",
+  "targetRoles": [
+    "Data Scientist",
+    "Data Analyst",
+    "Data Engineer",
+    "Business Analyst",
+    "Adjunct Professor"
+  ],
+  "preferredLocations": [
+    "Dallas, TX",
+    "Irving, TX",
+    "Plano, TX",
+    "Richardson, TX",
+    "Arlington, TX"
+  ],
+  "links": {
+    "github": "https://github.com/nickmoon1",
+    "linkedin": "https://www.linkedin.com/in/moonmware/",
+    "portfolio": "https://www.nickmoonmware.com/"
+  }
+}
