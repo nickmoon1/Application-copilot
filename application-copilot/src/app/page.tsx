@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const jobs = [
   {
@@ -87,6 +87,41 @@ const initialJobDraft = {
   notes: "",
 };
 
+type SavedApplication = {
+  id: string;
+  company: string;
+  role: string;
+  location: string;
+  source: string;
+  jobUrl: string;
+  matchScore: string;
+  notes: string;
+  prNumber: number;
+  prUrl: string;
+  status: string;
+  createdAt: string;
+};
+
+const storageKey = "application-copilot.recent-applications";
+
+function loadSavedApplications() {
+  if (typeof window === "undefined") {
+    return [];
+  }
+
+  const stored = window.localStorage.getItem(storageKey);
+
+  if (!stored) {
+    return [];
+  }
+
+  try {
+    return JSON.parse(stored) as SavedApplication[];
+  } catch {
+    return [];
+  }
+}
+
 function statusClass(status: string) {
   if (status === "Ready") return "ready";
   if (status === "Needs Edit") return "warn";
@@ -97,15 +132,27 @@ function statusClass(status: string) {
 export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [jobDraft, setJobDraft] = useState(initialJobDraft);
+  const [savedApplications, setSavedApplications] = useState<SavedApplication[]>(loadSavedApplications);
+  const hasMounted = useRef(false);
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
+  const [checkingApplicationId, setCheckingApplicationId] = useState<string | null>(null);
   const [isCreatingPr, setIsCreatingPr] = useState(false);
   const [createPrError, setCreatePrError] = useState<string | null>(null);
   const selectedJob = useMemo(() => jobs[selectedIndex], [selectedIndex]);
   const isApproved = approvalStatus === "APPROVED" || approvalStatus === "MERGED";
   const isReady = selectedJob.status === "Ready" || isApproved;
+
+  useEffect(() => {
+    if (!hasMounted.current) {
+      hasMounted.current = true;
+      return;
+    }
+
+    window.localStorage.setItem(storageKey, JSON.stringify(savedApplications));
+  }, [savedApplications]);
 
   function updateJobDraft(field: keyof typeof initialJobDraft, value: string) {
     setJobDraft((current) => ({
@@ -136,6 +183,23 @@ export default function Home() {
       setPrUrl(data.pullRequest.url);
       setTrackedPullNumber(data.pullRequest.number);
       setApprovalStatus("PENDING_REVIEW");
+      setSavedApplications((current) => [
+        {
+          id: `${data.pullRequest.number}-${Date.now()}`,
+          company: jobDraft.company,
+          role: jobDraft.role,
+          location: jobDraft.location,
+          source: jobDraft.source,
+          jobUrl: jobDraft.jobUrl,
+          matchScore: jobDraft.matchScore,
+          notes: jobDraft.notes,
+          prNumber: data.pullRequest.number,
+          prUrl: data.pullRequest.url,
+          status: "PENDING_REVIEW",
+          createdAt: new Date().toISOString(),
+        },
+        ...current,
+      ]);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
     } finally {
@@ -148,19 +212,51 @@ export default function Home() {
     setCreatePrError(null);
 
     try {
-      const response = await fetch(`/api/github/pr-status?pull_number=${trackedPullNumber}`);
+      const status = await fetchApprovalStatus(trackedPullNumber);
+
+      setApprovalStatus(status);
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
+    } finally {
+      setIsCheckingApproval(false);
+    }
+  }
+
+  async function checkSavedApplication(application: SavedApplication) {
+    setCheckingApplicationId(application.id);
+    setCreatePrError(null);
+
+    try {
+      const status = await fetchApprovalStatus(application.prNumber);
+
+      setTrackedPullNumber(application.prNumber);
+      setApprovalStatus(status);
+      setSavedApplications((current) =>
+        current.map((item) =>
+          item.id === application.id
+            ? {
+                ...item,
+                status,
+              }
+            : item,
+        ),
+      );
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
+    } finally {
+      setCheckingApplicationId(null);
+    }
+  }
+
+  async function fetchApprovalStatus(pullNumber: number) {
+    const response = await fetch(`/api/github/pr-status?pull_number=${pullNumber}`);
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error ?? "Unable to check pull request status");
       }
 
-      setApprovalStatus(data.state);
-    } catch (error) {
-      setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
-    } finally {
-      setIsCheckingApproval(false);
-    }
+    return data.state as string;
   }
 
   return (
@@ -326,6 +422,52 @@ export default function Home() {
               />
             </label>
           </div>
+        </section>
+
+        <section className="applications-panel" aria-label="Recent applications">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Recent Applications</p>
+              <h2>GitHub PR Tracker</h2>
+            </div>
+            <span className="count-label">{savedApplications.length} saved</span>
+          </div>
+
+          {savedApplications.length > 0 ? (
+            <div className="applications-table">
+              {savedApplications.map((application) => (
+                <article className="application-row" key={application.id}>
+                  <div>
+                    <p className="eyebrow">PR #{application.prNumber}</p>
+                    <h3>{application.company} - {application.role}</h3>
+                    <div className="job-meta">
+                      <span>{application.location}</span>
+                      <span>{application.source}</span>
+                      <span>{application.matchScore}% match</span>
+                    </div>
+                  </div>
+                  <span className={`pill ${application.status === "MERGED" || application.status === "APPROVED" ? "ready" : "pr"}`}>
+                    {application.status}
+                  </span>
+                  <div className="row-actions">
+                    <a className="ghost link-button" href={application.prUrl} rel="noreferrer" target="_blank">
+                      Open PR
+                    </a>
+                    <button
+                      className="secondary"
+                      disabled={checkingApplicationId === application.id}
+                      onClick={() => checkSavedApplication(application)}
+                      type="button"
+                    >
+                      {checkingApplicationId === application.id ? "Checking" : "Check Status"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">Create an application PR to start tracking it here.</p>
+          )}
         </section>
 
         <section className="workspace">

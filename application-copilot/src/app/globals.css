@@ -74,7 +74,8 @@ button {
 .connect span,
 .meta-grid span,
 .metrics span,
-.preferences span {
+.preferences span,
+.count-label {
   display: block;
   color: var(--muted);
   font-size: 13px;
@@ -169,7 +170,8 @@ h3 {
 .primary,
 .secondary,
 .ghost,
-.icon-button {
+.icon-button,
+.link-button {
   min-height: 42px;
   border-radius: 8px;
   border: 1px solid var(--line);
@@ -268,6 +270,7 @@ h3 {
 
 .metrics article,
 .intake-panel,
+.applications-panel,
 .queue-panel,
 .detail-panel {
   background: var(--panel);
@@ -287,6 +290,11 @@ h3 {
 }
 
 .intake-panel {
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.applications-panel {
   margin-bottom: 16px;
   padding: 18px;
 }
@@ -328,6 +336,45 @@ h3 {
 .intake-grid textarea {
   resize: vertical;
   line-height: 1.45;
+}
+
+.applications-table {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.application-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto;
+  align-items: center;
+  gap: 14px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.application-row h3 {
+  line-height: 1.25;
+}
+
+.row-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.link-button {
+  display: inline-grid;
+  place-items: center;
+  text-decoration: none;
+}
+
+.empty-state {
+  margin-top: 14px;
+  color: var(--muted);
 }
 
 .workspace {
@@ -550,12 +597,21 @@ dd {
   .workspace,
   .metrics,
   .preferences,
-  .intake-grid {
+  .intake-grid,
+  .application-row {
     grid-template-columns: 1fr;
   }
 
   .intake-grid label.wide {
     grid-column: span 1;
+  }
+
+  .row-actions {
+    justify-content: stretch;
+  }
+
+  .row-actions > * {
+    flex: 1;
   }
 }
 
