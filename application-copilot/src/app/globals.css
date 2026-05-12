@@ -177,6 +177,14 @@ h3 {
   cursor: pointer;
 }
 
+.primary:disabled,
+.secondary:disabled,
+.ghost:disabled,
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .primary {
   background: var(--green);
   color: white;
@@ -207,6 +215,28 @@ h3 {
   display: grid;
   grid-template-columns: 1.2fr 0.8fr;
   gap: 12px;
+}
+
+.notice {
+  margin-top: 16px;
+  padding: 14px 16px;
+  border-radius: 8px;
+  border: 1px solid #bfdfd0;
+  background: #effaf4;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.notice a {
+  color: var(--blue);
+  font-weight: 700;
+}
+
+.notice.error {
+  border-color: #efc4c4;
+  background: #fff1f1;
 }
 
 .preferences div {

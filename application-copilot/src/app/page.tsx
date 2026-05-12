@@ -86,8 +86,34 @@ function statusClass(status: string) {
 
 export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [prUrl, setPrUrl] = useState<string | null>(null);
+  const [isCreatingPr, setIsCreatingPr] = useState(false);
+  const [createPrError, setCreatePrError] = useState<string | null>(null);
   const selectedJob = useMemo(() => jobs[selectedIndex], [selectedIndex]);
   const isReady = selectedJob.status === "Ready";
+
+  async function createSamplePr() {
+    setIsCreatingPr(true);
+    setCreatePrError(null);
+    setPrUrl(null);
+
+    try {
+      const response = await fetch("/api/github/create-pr", {
+        method: "POST",
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error ?? "Unable to create pull request");
+      }
+
+      setPrUrl(data.pullRequest.url);
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
+    } finally {
+      setIsCreatingPr(false);
+    }
+  }
 
   return (
     <div className="app-frame">
@@ -125,9 +151,28 @@ export default function Home() {
           </div>
           <div className="actions">
             <button className="icon-button" type="button" aria-label="Refresh jobs" title="Refresh jobs">R</button>
+            <button className="secondary" disabled={isCreatingPr} onClick={createSamplePr} type="button">
+              {isCreatingPr ? "Creating PR" : "Create Sample PR"}
+            </button>
             <button className="primary" type="button">Find Jobs</button>
           </div>
         </header>
+
+        {(prUrl || createPrError) && (
+          <section className={`notice ${createPrError ? "error" : ""}`}>
+            {prUrl ? (
+              <>
+                <strong>Pull request created.</strong>
+                <a href={prUrl} rel="noreferrer" target="_blank">{prUrl}</a>
+              </>
+            ) : (
+              <>
+                <strong>Could not create pull request.</strong>
+                <span>{createPrError}</span>
+              </>
+            )}
+          </section>
+        )}
 
         <section className="preferences" aria-label="Search preferences">
           <div>
