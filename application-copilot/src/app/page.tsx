@@ -77,6 +77,16 @@ const metrics = [
   { label: "Ready", value: "2" },
 ];
 
+const initialJobDraft = {
+  company: "",
+  role: "Data Analyst",
+  location: "Dallas, TX",
+  source: "Manual entry",
+  jobUrl: "",
+  matchScore: "85",
+  notes: "",
+};
+
 function statusClass(status: string) {
   if (status === "Ready") return "ready";
   if (status === "Needs Edit") return "warn";
@@ -86,6 +96,7 @@ function statusClass(status: string) {
 
 export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [jobDraft, setJobDraft] = useState(initialJobDraft);
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
@@ -96,7 +107,14 @@ export default function Home() {
   const isApproved = approvalStatus === "APPROVED" || approvalStatus === "MERGED";
   const isReady = selectedJob.status === "Ready" || isApproved;
 
-  async function createSamplePr() {
+  function updateJobDraft(field: keyof typeof initialJobDraft, value: string) {
+    setJobDraft((current) => ({
+      ...current,
+      [field]: value,
+    }));
+  }
+
+  async function createApplicationPr() {
     setIsCreatingPr(true);
     setCreatePrError(null);
     setPrUrl(null);
@@ -104,6 +122,10 @@ export default function Home() {
     try {
       const response = await fetch("/api/github/create-pr", {
         method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(jobDraft),
       });
       const data = await response.json();
 
@@ -177,9 +199,6 @@ export default function Home() {
           </div>
           <div className="actions">
             <button className="icon-button" type="button" aria-label="Refresh jobs" title="Refresh jobs">R</button>
-            <button className="secondary" disabled={isCreatingPr} onClick={createSamplePr} type="button">
-              {isCreatingPr ? "Creating PR" : "Create Sample PR"}
-            </button>
             <button className="secondary" disabled={isCheckingApproval} onClick={checkApproval} type="button">
               {isCheckingApproval ? "Checking" : `Check PR #${trackedPullNumber}`}
             </button>
@@ -228,6 +247,85 @@ export default function Home() {
               <strong>{metric.value}</strong>
             </article>
           ))}
+        </section>
+
+        <section className="intake-panel" aria-label="Manual job intake">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Manual Intake</p>
+              <h2>Create Application PR</h2>
+            </div>
+            <button className="primary" disabled={isCreatingPr} onClick={createApplicationPr} type="button">
+              {isCreatingPr ? "Creating PR" : "Create Application PR"}
+            </button>
+          </div>
+
+          <div className="intake-grid">
+            <label>
+              <span>Company</span>
+              <input
+                onChange={(event) => updateJobDraft("company", event.target.value)}
+                placeholder="Capital One"
+                type="text"
+                value={jobDraft.company}
+              />
+            </label>
+            <label>
+              <span>Role</span>
+              <input
+                onChange={(event) => updateJobDraft("role", event.target.value)}
+                placeholder="Senior Data Analyst"
+                type="text"
+                value={jobDraft.role}
+              />
+            </label>
+            <label>
+              <span>Location</span>
+              <input
+                onChange={(event) => updateJobDraft("location", event.target.value)}
+                placeholder="Plano, TX"
+                type="text"
+                value={jobDraft.location}
+              />
+            </label>
+            <label>
+              <span>Source</span>
+              <input
+                onChange={(event) => updateJobDraft("source", event.target.value)}
+                placeholder="Company board"
+                type="text"
+                value={jobDraft.source}
+              />
+            </label>
+            <label>
+              <span>Match Score</span>
+              <input
+                max="100"
+                min="0"
+                onChange={(event) => updateJobDraft("matchScore", event.target.value)}
+                type="number"
+                value={jobDraft.matchScore}
+              />
+            </label>
+            <label className="wide">
+              <span>Job URL</span>
+              <input
+                onChange={(event) => updateJobDraft("jobUrl", event.target.value)}
+                placeholder="https://..."
+                type="url"
+                value={jobDraft.jobUrl}
+              />
+            </label>
+            <label className="wide">
+              <span>Notes</span>
+              <textarea
+                onChange={(event) => updateJobDraft("notes", event.target.value)}
+                placeholder="What should the cover letter or answers emphasize?"
+                rows={3}
+                value={jobDraft.notes}
+              />
+            </label>
+          </div>
         </section>
 
         <section className="workspace">

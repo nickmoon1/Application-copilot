@@ -267,6 +267,7 @@ h3 {
 }
 
 .metrics article,
+.intake-panel,
 .queue-panel,
 .detail-panel {
   background: var(--panel);
@@ -283,6 +284,50 @@ h3 {
   display: block;
   margin-top: 8px;
   font-size: 28px;
+}
+
+.intake-panel {
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.intake-grid {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap: 12px;
+}
+
+.intake-grid label {
+  display: grid;
+  gap: 6px;
+}
+
+.intake-grid label.wide {
+  grid-column: span 5;
+}
+
+.intake-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.intake-grid input,
+.intake-grid textarea {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: var(--ink);
+  background: #fbfcfb;
+  font: inherit;
+}
+
+.intake-grid textarea {
+  resize: vertical;
+  line-height: 1.45;
 }
 
 .workspace {
@@ -504,8 +549,13 @@ dd {
 
   .workspace,
   .metrics,
-  .preferences {
+  .preferences,
+  .intake-grid {
     grid-template-columns: 1fr;
+  }
+
+  .intake-grid label.wide {
+    grid-column: span 1;
   }
 }
 

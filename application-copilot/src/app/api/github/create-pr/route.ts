@@ -1,21 +1,26 @@
 import { NextResponse } from "next/server";
 import { getInstallationOctokit, requireGitHubConfig } from "@/lib/github";
 
-const sampleApplication = {
-  company: "Capital One",
-  role: "Senior Data Analyst",
-  location: "Plano, TX",
-  source: "Company board",
-  matchScore: 96,
+type JobDraftRequest = {
+  company?: string;
+  role?: string;
+  location?: string;
+  source?: string;
+  jobUrl?: string;
+  matchScore?: number | string;
+  notes?: string;
 };
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const config = requireGitHubConfig();
     const octokit = getInstallationOctokit();
-    const slug = `${Date.now()}-capital-one-senior-data-analyst`;
+    const application = await parseApplicationRequest(request);
+    const companySlug = slugify(application.company);
+    const roleSlug = slugify(application.role);
+    const slug = `${Date.now()}-${companySlug}-${roleSlug}`;
     const branchName = `application/${slug}`;
-    const folder = "applications/capital-one/senior-data-analyst";
+    const folder = `applications/${companySlug}/${roleSlug}`;
 
     const { data: repo } = await octokit.rest.repos.get({
       owner: config.owner,
@@ -43,8 +48,8 @@ export async function POST() {
       repo: config.repo,
       branch: branchName,
       path: `${folder}/job.json`,
-      message: "Add sample job details",
-      content: JSON.stringify(sampleApplication, null, 2),
+      message: `Add job details for ${application.company}`,
+      content: JSON.stringify(application, null, 2),
     });
 
     await createOrUpdateFile({
@@ -53,15 +58,16 @@ export async function POST() {
       repo: config.repo,
       branch: branchName,
       path: `${folder}/answers.json`,
-      message: "Add sample application answers",
+      message: `Add draft answers for ${application.company}`,
       content: JSON.stringify(
         {
           whyThisRole:
-            "This role matches my data analytics, SQL, dashboarding, and stakeholder communication experience.",
+            `This ${application.role} role matches my data analytics, SQL, Python, dashboarding, and stakeholder communication experience.`,
           location:
-            "I am based in Dallas, TX and interested in Dallas-area roles including Plano, Irving, Richardson, and Arlington.",
+            `I am based in Dallas, TX and interested in Dallas-area roles including ${application.location}.`,
           workStyle:
             "I can work cross-functionally with business, operations, and technical teams to turn data into clear recommendations.",
+          notesForReview: application.notes || "No extra notes provided.",
         },
         null,
         2,
@@ -74,16 +80,16 @@ export async function POST() {
       repo: config.repo,
       branch: branchName,
       path: `${folder}/cover-letter.md`,
-      message: "Add sample cover letter",
-      content: `# Capital One - Senior Data Analyst
+      message: `Add draft cover letter for ${application.company}`,
+      content: `# ${application.company} - ${application.role}
 
 Dear Hiring Team,
 
-I am interested in the Senior Data Analyst role because it aligns with my experience in SQL, Python, dashboard development, exploratory analysis, and business-facing data storytelling.
+I am interested in the ${application.role} role because it aligns with my experience in SQL, Python, dashboard development, exploratory analysis, and business-facing data storytelling.
 
 My recent work includes predictive modeling, Tableau dashboards, data cleaning pipelines, and applied analytics projects that translate technical findings into practical recommendations.
 
-Thank you for your consideration.
+${application.notes ? `Additional review notes: ${application.notes}\n\n` : ""}Thank you for your consideration.
 `,
     });
 
@@ -97,6 +103,7 @@ Thank you for your consideration.
       content: `# Review Checklist
 
 - [ ] Confirm role, company, and location.
+- [ ] Confirm job URL and source.
 - [ ] Review salary and hybrid-work expectations.
 - [ ] Review generated answers.
 - [ ] Review cover letter.
@@ -107,19 +114,21 @@ Thank you for your consideration.
     const { data: pull } = await octokit.rest.pulls.create({
       owner: config.owner,
       repo: config.repo,
-      title: "Application draft: Capital One - Senior Data Analyst",
+      title: `Application draft: ${application.company} - ${application.role}`,
       head: branchName,
       base: baseBranch,
       body: `## Application Draft
 
-This PR stages a sample application packet for review.
+This PR stages a manually entered application packet for review.
 
 ### Job
 
-- Company: Capital One
-- Role: Senior Data Analyst
-- Location: Plano, TX
-- Match score: 96%
+- Company: ${application.company}
+- Role: ${application.role}
+- Location: ${application.location}
+- Source: ${application.source}
+- Job URL: ${application.jobUrl || "Not provided"}
+- Match score: ${application.matchScore}%
 
 ### Approval Gate
 
@@ -145,6 +154,56 @@ Review the files in this PR. The application should remain locked in the app unt
       { status: 500 },
     );
   }
+}
+
+async function parseApplicationRequest(request: Request) {
+  const body = (await request.json().catch(() => ({}))) as JobDraftRequest;
+  const company = requireText(body.company, "company");
+  const role = requireText(body.role, "role");
+  const location = requireText(body.location, "location");
+  const source = body.source?.trim() || "Manual entry";
+  const jobUrl = body.jobUrl?.trim() || "";
+  const notes = body.notes?.trim() || "";
+  const matchScore = normalizeMatchScore(body.matchScore);
+
+  return {
+    company,
+    role,
+    location,
+    source,
+    jobUrl,
+    matchScore,
+    notes,
+    createdAt: new Date().toISOString(),
+  };
+}
+
+function requireText(value: string | undefined, field: string) {
+  const trimmed = value?.trim();
+
+  if (!trimmed) {
+    throw new Error(`Missing required field: ${field}`);
+  }
+
+  return trimmed;
+}
+
+function normalizeMatchScore(value: number | string | undefined) {
+  const numeric = Number(value ?? 80);
+
+  if (!Number.isFinite(numeric)) {
+    return 80;
+  }
+
+  return Math.max(0, Math.min(100, Math.round(numeric)));
+}
+
+function slugify(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 60);
 }
 
 type CreateOrUpdateFileInput = {
