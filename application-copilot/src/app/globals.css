@@ -239,6 +239,11 @@ h3 {
   background: #fff1f1;
 }
 
+.notice.pending {
+  border-color: #ead2b9;
+  background: #fff7ed;
+}
+
 .preferences div {
   min-height: 76px;
   padding: 16px 18px;

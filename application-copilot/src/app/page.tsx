@@ -87,10 +87,14 @@ function statusClass(status: string) {
 export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [prUrl, setPrUrl] = useState<string | null>(null);
+  const [trackedPullNumber, setTrackedPullNumber] = useState(1);
+  const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
+  const [isCheckingApproval, setIsCheckingApproval] = useState(false);
   const [isCreatingPr, setIsCreatingPr] = useState(false);
   const [createPrError, setCreatePrError] = useState<string | null>(null);
   const selectedJob = useMemo(() => jobs[selectedIndex], [selectedIndex]);
-  const isReady = selectedJob.status === "Ready";
+  const isApproved = approvalStatus === "APPROVED" || approvalStatus === "MERGED";
+  const isReady = selectedJob.status === "Ready" || isApproved;
 
   async function createSamplePr() {
     setIsCreatingPr(true);
@@ -108,10 +112,32 @@ export default function Home() {
       }
 
       setPrUrl(data.pullRequest.url);
+      setTrackedPullNumber(data.pullRequest.number);
+      setApprovalStatus("PENDING_REVIEW");
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
     } finally {
       setIsCreatingPr(false);
+    }
+  }
+
+  async function checkApproval() {
+    setIsCheckingApproval(true);
+    setCreatePrError(null);
+
+    try {
+      const response = await fetch(`/api/github/pr-status?pull_number=${trackedPullNumber}`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Unable to check pull request status");
+      }
+
+      setApprovalStatus(data.state);
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
+    } finally {
+      setIsCheckingApproval(false);
     }
   }
 
@@ -154,6 +180,9 @@ export default function Home() {
             <button className="secondary" disabled={isCreatingPr} onClick={createSamplePr} type="button">
               {isCreatingPr ? "Creating PR" : "Create Sample PR"}
             </button>
+            <button className="secondary" disabled={isCheckingApproval} onClick={checkApproval} type="button">
+              {isCheckingApproval ? "Checking" : `Check PR #${trackedPullNumber}`}
+            </button>
             <button className="primary" type="button">Find Jobs</button>
           </div>
         </header>
@@ -171,6 +200,13 @@ export default function Home() {
                 <span>{createPrError}</span>
               </>
             )}
+          </section>
+        )}
+
+        {approvalStatus && (
+          <section className={`notice ${isApproved ? "" : "pending"}`}>
+            <strong>PR #{trackedPullNumber} status:</strong>
+            <span>{approvalStatus}</span>
           </section>
         )}
 
@@ -284,7 +320,7 @@ export default function Home() {
                 <span />
                 <div>
                   <strong>Final review</strong>
-                  <p>Submission remains locked until PR approval.</p>
+                  <p>{isApproved ? "PR approved. Final review is unlocked." : "Submission remains locked until PR approval."}</p>
                 </div>
               </div>
             </section>
