@@ -6,10 +6,13 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:generate": "prisma generate",
+    "db:setup": "node scripts/setup-local-db.mjs"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.2.0",
+    "@prisma/client": "^6.19.3",
     "next": "16.2.6",
     "octokit": "^5.0.5",
     "react": "19.2.4",
@@ -21,6 +24,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.6",
+    "prisma": "^6.19.3",
     "typescript": "^5"
   }
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 const jobs = [
   {
@@ -94,33 +94,13 @@ type SavedApplication = {
   location: string;
   source: string;
   jobUrl: string;
-  matchScore: string;
+  matchScore: number;
   notes: string;
   prNumber: number;
   prUrl: string;
   status: string;
   createdAt: string;
 };
-
-const storageKey = "application-copilot.recent-applications";
-
-function loadSavedApplications() {
-  if (typeof window === "undefined") {
-    return [];
-  }
-
-  const stored = window.localStorage.getItem(storageKey);
-
-  if (!stored) {
-    return [];
-  }
-
-  try {
-    return JSON.parse(stored) as SavedApplication[];
-  } catch {
-    return [];
-  }
-}
 
 function statusClass(status: string) {
   if (status === "Ready") return "ready";
@@ -132,8 +112,8 @@ function statusClass(status: string) {
 export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [jobDraft, setJobDraft] = useState(initialJobDraft);
-  const [savedApplications, setSavedApplications] = useState<SavedApplication[]>(loadSavedApplications);
-  const hasMounted = useRef(false);
+  const [savedApplications, setSavedApplications] = useState<SavedApplication[]>([]);
+  const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
@@ -146,13 +126,27 @@ export default function Home() {
   const isReady = selectedJob.status === "Ready" || isApproved;
 
   useEffect(() => {
-    if (!hasMounted.current) {
-      hasMounted.current = true;
-      return;
-    }
+    void loadApplications();
+  }, []);
 
-    window.localStorage.setItem(storageKey, JSON.stringify(savedApplications));
-  }, [savedApplications]);
+  async function loadApplications() {
+    setIsLoadingApplications(true);
+
+    try {
+      const response = await fetch("/api/applications");
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Unable to load applications");
+      }
+
+      setSavedApplications(data.applications);
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to load applications");
+    } finally {
+      setIsLoadingApplications(false);
+    }
+  }
 
   function updateJobDraft(field: keyof typeof initialJobDraft, value: string) {
     setJobDraft((current) => ({
@@ -183,23 +177,7 @@ export default function Home() {
       setPrUrl(data.pullRequest.url);
       setTrackedPullNumber(data.pullRequest.number);
       setApprovalStatus("PENDING_REVIEW");
-      setSavedApplications((current) => [
-        {
-          id: `${data.pullRequest.number}-${Date.now()}`,
-          company: jobDraft.company,
-          role: jobDraft.role,
-          location: jobDraft.location,
-          source: jobDraft.source,
-          jobUrl: jobDraft.jobUrl,
-          matchScore: jobDraft.matchScore,
-          notes: jobDraft.notes,
-          prNumber: data.pullRequest.number,
-          prUrl: data.pullRequest.url,
-          status: "PENDING_REVIEW",
-          createdAt: new Date().toISOString(),
-        },
-        ...current,
-      ]);
+      setSavedApplications((current) => [data.application, ...current]);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
     } finally {
@@ -231,6 +209,7 @@ export default function Home() {
 
       setTrackedPullNumber(application.prNumber);
       setApprovalStatus(status);
+      await updateApplicationStatus(application.id, status);
       setSavedApplications((current) =>
         current.map((item) =>
           item.id === application.id
@@ -250,13 +229,23 @@ export default function Home() {
 
   async function fetchApprovalStatus(pullNumber: number) {
     const response = await fetch(`/api/github/pr-status?pull_number=${pullNumber}`);
-      const data = await response.json();
+    const data = await response.json();
 
-      if (!response.ok) {
-        throw new Error(data.error ?? "Unable to check pull request status");
-      }
+    if (!response.ok) {
+      throw new Error(data.error ?? "Unable to check pull request status");
+    }
 
     return data.state as string;
+  }
+
+  async function updateApplicationStatus(id: string, status: string) {
+    await fetch(`/api/applications/${id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ status }),
+    });
   }
 
   return (
@@ -294,7 +283,7 @@ export default function Home() {
             <h1>Application Queue</h1>
           </div>
           <div className="actions">
-            <button className="icon-button" type="button" aria-label="Refresh jobs" title="Refresh jobs">R</button>
+            <button className="icon-button" onClick={loadApplications} type="button" aria-label="Refresh applications" title="Refresh applications">R</button>
             <button className="secondary" disabled={isCheckingApproval} onClick={checkApproval} type="button">
               {isCheckingApproval ? "Checking" : `Check PR #${trackedPullNumber}`}
             </button>
@@ -430,10 +419,12 @@ export default function Home() {
               <p className="eyebrow">Recent Applications</p>
               <h2>GitHub PR Tracker</h2>
             </div>
-            <span className="count-label">{savedApplications.length} saved</span>
+            <span className="count-label">{isLoadingApplications ? "Loading" : `${savedApplications.length} saved`}</span>
           </div>
 
-          {savedApplications.length > 0 ? (
+          {isLoadingApplications ? (
+            <p className="empty-state">Loading saved applications...</p>
+          ) : savedApplications.length > 0 ? (
             <div className="applications-table">
               {savedApplications.map((application) => (
                 <article className="application-row" key={application.id}>

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/db";
 import { getInstallationOctokit, requireGitHubConfig } from "@/lib/github";
 
 type JobDraftRequest = {
@@ -136,10 +137,27 @@ Review the files in this PR. The application should remain locked in the app unt
 `,
     });
 
+    const storedApplication = await prisma.application.create({
+      data: {
+        company: application.company,
+        role: application.role,
+        location: application.location,
+        source: application.source,
+        jobUrl: application.jobUrl,
+        matchScore: application.matchScore,
+        notes: application.notes,
+        prNumber: pull.number,
+        prUrl: pull.html_url,
+        branch: branchName,
+        status: "PENDING_REVIEW",
+      },
+    });
+
     return NextResponse.json({
       ok: true,
       repo: `${config.owner}/${config.repo}`,
       branch: branchName,
+      application: storedApplication,
       pullRequest: {
         number: pull.number,
         url: pull.html_url,
