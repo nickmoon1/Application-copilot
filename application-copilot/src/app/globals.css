@@ -271,6 +271,7 @@ h3 {
 .metrics article,
 .intake-panel,
 .applications-panel,
+.application-detail-panel,
 .queue-panel,
 .detail-panel {
   background: var(--panel);
@@ -295,6 +296,11 @@ h3 {
 }
 
 .applications-panel {
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.application-detail-panel {
   margin-bottom: 16px;
   padding: 18px;
 }
@@ -355,6 +361,11 @@ h3 {
   background: #fbfcfb;
 }
 
+.application-row.selected {
+  border-color: #5c967d;
+  box-shadow: 0 0 0 3px rgba(22, 122, 87, 0.12);
+}
+
 .application-row h3 {
   line-height: 1.25;
 }
@@ -375,6 +386,71 @@ h3 {
 .empty-state {
   margin-top: 14px;
   color: var(--muted);
+}
+
+.detail-meta {
+  grid-template-columns: repeat(6, 1fr);
+}
+
+.detail-meta div {
+  min-width: 0;
+}
+
+.detail-meta strong {
+  overflow-wrap: anywhere;
+}
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(260px, 1fr));
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.preview-copy {
+  margin-top: 14px;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.muted-copy {
+  color: var(--muted);
+}
+
+.checklist {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  gap: 10px;
+}
+
+.check-item {
+  min-height: 58px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+  color: var(--muted);
+}
+
+.check-item span {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  border: 2px solid #c8d0ca;
+}
+
+.check-item.done {
+  color: var(--ink);
+}
+
+.check-item.done span {
+  background: var(--green);
+  border-color: var(--green);
 }
 
 .workspace {
@@ -598,7 +674,10 @@ dd {
   .metrics,
   .preferences,
   .intake-grid,
-  .application-row {
+  .application-row,
+  .detail-meta,
+  .detail-grid,
+  .checklist {
     grid-template-columns: 1fr;
   }
 

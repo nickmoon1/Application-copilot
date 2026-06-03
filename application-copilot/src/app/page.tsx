@@ -98,8 +98,10 @@ type SavedApplication = {
   notes: string;
   prNumber: number;
   prUrl: string;
+  branch: string;
   status: string;
   createdAt: string;
+  updatedAt: string;
 };
 
 function statusClass(status: string) {
@@ -109,10 +111,23 @@ function statusClass(status: string) {
   return "";
 }
 
+function isAcceptedStatus(status: string) {
+  return status === "APPROVED" || status === "MERGED";
+}
+
+function formatDate(value: string) {
+  return new Intl.DateTimeFormat("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  }).format(new Date(value));
+}
+
 export default function Home() {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [jobDraft, setJobDraft] = useState(initialJobDraft);
   const [savedApplications, setSavedApplications] = useState<SavedApplication[]>([]);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
@@ -122,8 +137,16 @@ export default function Home() {
   const [isCreatingPr, setIsCreatingPr] = useState(false);
   const [createPrError, setCreatePrError] = useState<string | null>(null);
   const selectedJob = useMemo(() => jobs[selectedIndex], [selectedIndex]);
+  const selectedApplication = useMemo(
+    () =>
+      savedApplications.find((application) => application.id === selectedApplicationId) ??
+      savedApplications[0] ??
+      null,
+    [savedApplications, selectedApplicationId],
+  );
   const isApproved = approvalStatus === "APPROVED" || approvalStatus === "MERGED";
   const isReady = selectedJob.status === "Ready" || isApproved;
+  const selectedApplicationAccepted = selectedApplication ? isAcceptedStatus(selectedApplication.status) : false;
 
   useEffect(() => {
     void loadApplications();
@@ -141,6 +164,7 @@ export default function Home() {
       }
 
       setSavedApplications(data.applications);
+      setSelectedApplicationId((current) => current ?? data.applications[0]?.id ?? null);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to load applications");
     } finally {
@@ -178,6 +202,7 @@ export default function Home() {
       setTrackedPullNumber(data.pullRequest.number);
       setApprovalStatus("PENDING_REVIEW");
       setSavedApplications((current) => [data.application, ...current]);
+      setSelectedApplicationId(data.application.id);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
     } finally {
@@ -220,6 +245,7 @@ export default function Home() {
             : item,
         ),
       );
+      setSelectedApplicationId(application.id);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
     } finally {
@@ -427,7 +453,10 @@ export default function Home() {
           ) : savedApplications.length > 0 ? (
             <div className="applications-table">
               {savedApplications.map((application) => (
-                <article className="application-row" key={application.id}>
+                <article
+                  className={`application-row${application.id === selectedApplication?.id ? " selected" : ""}`}
+                  key={application.id}
+                >
                   <div>
                     <p className="eyebrow">PR #{application.prNumber}</p>
                     <h3>{application.company} - {application.role}</h3>
@@ -441,6 +470,9 @@ export default function Home() {
                     {application.status}
                   </span>
                   <div className="row-actions">
+                    <button className="secondary" onClick={() => setSelectedApplicationId(application.id)} type="button">
+                      View
+                    </button>
                     <a className="ghost link-button" href={application.prUrl} rel="noreferrer" target="_blank">
                       Open PR
                     </a>
@@ -460,6 +492,118 @@ export default function Home() {
             <p className="empty-state">Create an application PR to start tracking it here.</p>
           )}
         </section>
+
+        {selectedApplication && (
+          <section className="application-detail-panel" aria-label="Application detail view">
+            <div className="detail-top">
+              <div>
+                <p className="eyebrow">Application Detail</p>
+                <h2>{selectedApplication.company} - {selectedApplication.role}</h2>
+              </div>
+              <span className={`pill ${selectedApplicationAccepted ? "ready" : "pr"}`}>
+                {selectedApplication.status}
+              </span>
+            </div>
+
+            <div className="meta-grid detail-meta">
+              <div>
+                <span>Location</span>
+                <strong>{selectedApplication.location}</strong>
+              </div>
+              <div>
+                <span>Match</span>
+                <strong>{selectedApplication.matchScore}%</strong>
+              </div>
+              <div>
+                <span>PR</span>
+                <strong>#{selectedApplication.prNumber}</strong>
+              </div>
+              <div>
+                <span>Source</span>
+                <strong>{selectedApplication.source}</strong>
+              </div>
+              <div>
+                <span>Created</span>
+                <strong>{formatDate(selectedApplication.createdAt)}</strong>
+              </div>
+              <div>
+                <span>Branch</span>
+                <strong>{selectedApplication.branch}</strong>
+              </div>
+            </div>
+
+            <section className="detail-grid">
+              <article className="review-box">
+                <div className="review-head">
+                  <div>
+                    <p className="eyebrow">Draft Preview</p>
+                    <h3>Cover Letter</h3>
+                  </div>
+                </div>
+                <p className="preview-copy">
+                  I am interested in the {selectedApplication.role} role at {selectedApplication.company} because it aligns with my experience in SQL, Python, dashboard development, exploratory analysis, and business-facing data storytelling.
+                </p>
+                {selectedApplication.notes && (
+                  <p className="preview-copy muted-copy">{selectedApplication.notes}</p>
+                )}
+              </article>
+
+              <article className="review-box">
+                <div className="review-head">
+                  <div>
+                    <p className="eyebrow">Draft Preview</p>
+                    <h3>Job Questions</h3>
+                  </div>
+                </div>
+                <dl>
+                  <div>
+                    <dt>Why this role?</dt>
+                    <dd>This {selectedApplication.role} role matches the target data and analytics path for Dallas-area opportunities.</dd>
+                  </div>
+                  <div>
+                    <dt>Location answer</dt>
+                    <dd>Based in Dallas, TX and interested in {selectedApplication.location} or nearby roles.</dd>
+                  </div>
+                </dl>
+              </article>
+            </section>
+
+            <section className="checklist">
+              <div className={`check-item done`}>
+                <span />
+                <strong>Application packet created</strong>
+              </div>
+              <div className={`check-item done`}>
+                <span />
+                <strong>Pull request opened</strong>
+              </div>
+              <div className={`check-item ${selectedApplicationAccepted ? "done" : ""}`}>
+                <span />
+                <strong>PR approved or merged</strong>
+              </div>
+              <div className={`check-item ${selectedApplicationAccepted ? "done" : ""}`}>
+                <span />
+                <strong>Final review unlocked</strong>
+              </div>
+            </section>
+
+            <footer className="submit-bar">
+              <a className="ghost link-button" href={selectedApplication.prUrl} rel="noreferrer" target="_blank">
+                Open PR
+              </a>
+              {selectedApplication.jobUrl ? (
+                <a className="secondary link-button" href={selectedApplication.jobUrl} rel="noreferrer" target="_blank">
+                  Open Job
+                </a>
+              ) : (
+                <button className="secondary" disabled type="button">No Job URL</button>
+              )}
+              <button className={`primary${selectedApplicationAccepted ? "" : " locked"}`} type="button">
+                {selectedApplicationAccepted ? "Review Final" : "Final Locked"}
+              </button>
+            </footer>
+          </section>
+        )}
 
         <section className="workspace">
           <div className="queue-panel">
