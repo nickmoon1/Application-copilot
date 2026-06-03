@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS Application (
   prNumber INTEGER NOT NULL UNIQUE,
   prUrl TEXT NOT NULL,
   branch TEXT NOT NULL,
+  folder TEXT NOT NULL DEFAULT '',
   status TEXT NOT NULL DEFAULT 'PENDING_REVIEW',
   createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
@@ -24,5 +25,13 @@ CREATE TABLE IF NOT EXISTS Application (
 execFileSync("sqlite3", [dbPath, schema], {
   stdio: "inherit",
 });
+
+try {
+  execFileSync("sqlite3", [dbPath, "ALTER TABLE Application ADD COLUMN folder TEXT NOT NULL DEFAULT '';"], {
+    stdio: "ignore",
+  });
+} catch {
+  // Column already exists.
+}
 
 console.log(`Local database ready at ${dbPath}`);

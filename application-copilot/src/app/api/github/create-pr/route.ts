@@ -149,6 +149,7 @@ Review the files in this PR. The application should remain locked in the app unt
         prNumber: pull.number,
         prUrl: pull.html_url,
         branch: branchName,
+        folder,
         status: "PENDING_REVIEW",
       },
     });

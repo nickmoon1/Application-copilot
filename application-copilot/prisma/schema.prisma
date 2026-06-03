@@ -19,6 +19,7 @@ model Application {
   prNumber   Int      @unique
   prUrl      String
   branch     String
+  folder     String   @default("")
   status     String   @default("PENDING_REVIEW")
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt

@@ -417,6 +417,22 @@ h3 {
   color: var(--muted);
 }
 
+.file-preview {
+  max-height: 320px;
+  margin-top: 14px;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #ffffff;
+  color: var(--ink);
+  padding: 12px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
 .checklist {
   margin-top: 16px;
   display: grid;

@@ -99,9 +99,17 @@ type SavedApplication = {
   prNumber: number;
   prUrl: string;
   branch: string;
+  folder: string;
   status: string;
   createdAt: string;
   updatedAt: string;
+};
+
+type ApplicationPacket = {
+  applicationId: string;
+  branch: string;
+  folder: string;
+  files: Record<string, string>;
 };
 
 function statusClass(status: string) {
@@ -128,6 +136,8 @@ export default function Home() {
   const [jobDraft, setJobDraft] = useState(initialJobDraft);
   const [savedApplications, setSavedApplications] = useState<SavedApplication[]>([]);
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(null);
+  const [applicationPacket, setApplicationPacket] = useState<ApplicationPacket | null>(null);
+  const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [isLoadingApplications, setIsLoadingApplications] = useState(true);
   const [prUrl, setPrUrl] = useState<string | null>(null);
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
@@ -151,6 +161,12 @@ export default function Home() {
   useEffect(() => {
     void loadApplications();
   }, []);
+
+  useEffect(() => {
+    if (!selectedApplication) return;
+
+    void loadApplicationPacket(selectedApplication.id);
+  }, [selectedApplication]);
 
   async function loadApplications() {
     setIsLoadingApplications(true);
@@ -272,6 +288,26 @@ export default function Home() {
       },
       body: JSON.stringify({ status }),
     });
+  }
+
+  async function loadApplicationPacket(id: string) {
+    setIsLoadingPacket(true);
+    setApplicationPacket(null);
+
+    try {
+      const response = await fetch(`/api/applications/${id}/packet`);
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error ?? "Unable to load application packet");
+      }
+
+      setApplicationPacket(data);
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to load application packet");
+    } finally {
+      setIsLoadingPacket(false);
+    }
   }
 
   return (
@@ -530,6 +566,10 @@ export default function Home() {
                 <span>Branch</span>
                 <strong>{selectedApplication.branch}</strong>
               </div>
+              <div>
+                <span>Folder</span>
+                <strong>{selectedApplication.folder || applicationPacket?.folder || "Unknown"}</strong>
+              </div>
             </div>
 
             <section className="detail-grid">
@@ -540,12 +580,9 @@ export default function Home() {
                     <h3>Cover Letter</h3>
                   </div>
                 </div>
-                <p className="preview-copy">
-                  I am interested in the {selectedApplication.role} role at {selectedApplication.company} because it aligns with my experience in SQL, Python, dashboard development, exploratory analysis, and business-facing data storytelling.
-                </p>
-                {selectedApplication.notes && (
-                  <p className="preview-copy muted-copy">{selectedApplication.notes}</p>
-                )}
+                <pre className="file-preview">
+                  {isLoadingPacket ? "Loading cover letter..." : applicationPacket?.files["cover-letter.md"] ?? "Cover letter not available."}
+                </pre>
               </article>
 
               <article className="review-box">
@@ -555,16 +592,35 @@ export default function Home() {
                     <h3>Job Questions</h3>
                   </div>
                 </div>
-                <dl>
+                <pre className="file-preview">
+                  {isLoadingPacket ? "Loading answers..." : applicationPacket?.files["answers.json"] ?? "Answers not available."}
+                </pre>
+              </article>
+            </section>
+
+            <section className="detail-grid">
+              <article className="review-box">
+                <div className="review-head">
                   <div>
-                    <dt>Why this role?</dt>
-                    <dd>This {selectedApplication.role} role matches the target data and analytics path for Dallas-area opportunities.</dd>
+                    <p className="eyebrow">Packet File</p>
+                    <h3>Checklist</h3>
                   </div>
+                </div>
+                <pre className="file-preview">
+                  {isLoadingPacket ? "Loading checklist..." : applicationPacket?.files["checklist.md"] ?? "Checklist not available."}
+                </pre>
+              </article>
+
+              <article className="review-box">
+                <div className="review-head">
                   <div>
-                    <dt>Location answer</dt>
-                    <dd>Based in Dallas, TX and interested in {selectedApplication.location} or nearby roles.</dd>
+                    <p className="eyebrow">Packet File</p>
+                    <h3>Job Snapshot</h3>
                   </div>
-                </dl>
+                </div>
+                <pre className="file-preview">
+                  {isLoadingPacket ? "Loading job snapshot..." : applicationPacket?.files["job.json"] ?? "Job snapshot not available."}
+                </pre>
               </article>
             </section>
 
