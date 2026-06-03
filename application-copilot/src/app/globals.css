@@ -24,6 +24,10 @@ body {
   overflow-x: hidden;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   background: var(--bg);
   color: var(--ink);
@@ -91,19 +95,22 @@ button {
   gap: 6px;
 }
 
-.nav button {
+.nav a {
   min-height: 42px;
   border: 0;
   border-radius: 8px;
   padding: 0 12px;
+  display: flex;
+  align-items: center;
   text-align: left;
+  text-decoration: none;
   color: #d9e3dd;
   background: transparent;
   cursor: pointer;
 }
 
-.nav button.active,
-.nav button:hover {
+.nav a.active,
+.nav a:hover {
   background: rgba(255, 255, 255, 0.1);
   color: #ffffff;
 }
