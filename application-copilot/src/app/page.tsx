@@ -120,7 +120,11 @@ function statusClass(status: string) {
 }
 
 function isAcceptedStatus(status: string) {
-  return status === "APPROVED" || status === "MERGED";
+  return status === "APPROVED" || status === "MERGED" || status === "READY_TO_SUBMIT" || status === "SUBMITTED";
+}
+
+function isSubmittedStatus(status: string) {
+  return status === "SUBMITTED";
 }
 
 function formatDate(value: string) {
@@ -145,6 +149,8 @@ export default function Home() {
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
   const [checkingApplicationId, setCheckingApplicationId] = useState<string | null>(null);
   const [isCreatingPr, setIsCreatingPr] = useState(false);
+  const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
+  const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [createPrError, setCreatePrError] = useState<string | null>(null);
   const selectedJob = useMemo(() => jobs[selectedIndex], [selectedIndex]);
   const selectedApplication = useMemo(
@@ -157,6 +163,7 @@ export default function Home() {
   const isApproved = approvalStatus === "APPROVED" || approvalStatus === "MERGED";
   const isReady = selectedJob.status === "Ready" || isApproved;
   const selectedApplicationAccepted = selectedApplication ? isAcceptedStatus(selectedApplication.status) : false;
+  const selectedApplicationSubmitted = selectedApplication ? isSubmittedStatus(selectedApplication.status) : false;
 
   useEffect(() => {
     void loadApplications();
@@ -242,6 +249,13 @@ export default function Home() {
   }
 
   async function checkSavedApplication(application: SavedApplication) {
+    if (isSubmittedStatus(application.status)) {
+      setSelectedApplicationId(application.id);
+      setTrackedPullNumber(application.prNumber);
+      setApprovalStatus(application.status);
+      return;
+    }
+
     setCheckingApplicationId(application.id);
     setCreatePrError(null);
 
@@ -250,14 +264,11 @@ export default function Home() {
 
       setTrackedPullNumber(application.prNumber);
       setApprovalStatus(status);
-      await updateApplicationStatus(application.id, status);
+      const updatedApplication = await updateApplicationStatus(application.id, status);
       setSavedApplications((current) =>
         current.map((item) =>
           item.id === application.id
-            ? {
-                ...item,
-                status,
-              }
+            ? updatedApplication
             : item,
         ),
       );
@@ -281,13 +292,20 @@ export default function Home() {
   }
 
   async function updateApplicationStatus(id: string, status: string) {
-    await fetch(`/api/applications/${id}`, {
+    const response = await fetch(`/api/applications/${id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ status }),
     });
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.error ?? "Unable to update application status");
+    }
+
+    return data.application as SavedApplication;
   }
 
   async function loadApplicationPacket(id: string) {
@@ -308,6 +326,35 @@ export default function Home() {
     } finally {
       setIsLoadingPacket(false);
     }
+  }
+
+  async function markSelectedApplicationSubmitted() {
+    if (!selectedApplication) return;
+
+    setIsUpdatingSubmission(true);
+    setCreatePrError(null);
+
+    try {
+      const updatedApplication = await updateApplicationStatus(selectedApplication.id, "SUBMITTED");
+      setSavedApplications((current) =>
+        current.map((application) =>
+          application.id === updatedApplication.id ? updatedApplication : application,
+        ),
+      );
+      setSelectedApplicationId(updatedApplication.id);
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to mark application submitted");
+    } finally {
+      setIsUpdatingSubmission(false);
+    }
+  }
+
+  async function copyPacketText(label: string, text: string | undefined) {
+    if (!text) return;
+
+    await navigator.clipboard.writeText(text);
+    setCopiedLabel(label);
+    window.setTimeout(() => setCopiedLabel(null), 1600);
   }
 
   return (
@@ -514,11 +561,15 @@ export default function Home() {
                     </a>
                     <button
                       className="secondary"
-                      disabled={checkingApplicationId === application.id}
+                      disabled={checkingApplicationId === application.id || isSubmittedStatus(application.status)}
                       onClick={() => checkSavedApplication(application)}
                       type="button"
                     >
-                      {checkingApplicationId === application.id ? "Checking" : "Check Status"}
+                      {isSubmittedStatus(application.status)
+                        ? "Submitted"
+                        : checkingApplicationId === application.id
+                          ? "Checking"
+                          : "Check Status"}
                     </button>
                   </div>
                 </article>
@@ -579,6 +630,14 @@ export default function Home() {
                     <p className="eyebrow">Draft Preview</p>
                     <h3>Cover Letter</h3>
                   </div>
+                  <button
+                    className="ghost"
+                    disabled={!applicationPacket?.files["cover-letter.md"]}
+                    onClick={() => copyPacketText("Cover letter", applicationPacket?.files["cover-letter.md"])}
+                    type="button"
+                  >
+                    {copiedLabel === "Cover letter" ? "Copied" : "Copy"}
+                  </button>
                 </div>
                 <pre className="file-preview">
                   {isLoadingPacket ? "Loading cover letter..." : applicationPacket?.files["cover-letter.md"] ?? "Cover letter not available."}
@@ -591,6 +650,14 @@ export default function Home() {
                     <p className="eyebrow">Draft Preview</p>
                     <h3>Job Questions</h3>
                   </div>
+                  <button
+                    className="ghost"
+                    disabled={!applicationPacket?.files["answers.json"]}
+                    onClick={() => copyPacketText("Answers", applicationPacket?.files["answers.json"])}
+                    type="button"
+                  >
+                    {copiedLabel === "Answers" ? "Copied" : "Copy"}
+                  </button>
                 </div>
                 <pre className="file-preview">
                   {isLoadingPacket ? "Loading answers..." : applicationPacket?.files["answers.json"] ?? "Answers not available."}
@@ -641,6 +708,55 @@ export default function Home() {
                 <span />
                 <strong>Final review unlocked</strong>
               </div>
+              <div className={`check-item ${selectedApplicationSubmitted ? "done" : ""}`}>
+                <span />
+                <strong>Application submitted</strong>
+              </div>
+            </section>
+
+            <section className={`submission-assist ${selectedApplicationAccepted ? "" : "locked-assist"}`}>
+              <div>
+                <p className="eyebrow">Submission Assist</p>
+                <h3>{selectedApplicationAccepted ? "Ready for manual submission" : "Waiting for PR approval"}</h3>
+                <p>
+                  {selectedApplicationAccepted
+                    ? "Open the job page, copy the approved materials, complete the employer form, then mark this application submitted."
+                    : "Approve or merge the GitHub PR before using the submission tools."}
+                </p>
+              </div>
+              <div className="row-actions">
+                {selectedApplication.jobUrl ? (
+                  <a className="secondary link-button" href={selectedApplication.jobUrl} rel="noreferrer" target="_blank">
+                    Open Job
+                  </a>
+                ) : (
+                  <button className="secondary" disabled type="button">No Job URL</button>
+                )}
+                <button
+                  className="secondary"
+                  disabled={!selectedApplicationAccepted || !applicationPacket?.files["cover-letter.md"]}
+                  onClick={() => copyPacketText("Cover letter", applicationPacket?.files["cover-letter.md"])}
+                  type="button"
+                >
+                  Copy Letter
+                </button>
+                <button
+                  className="secondary"
+                  disabled={!selectedApplicationAccepted || !applicationPacket?.files["answers.json"]}
+                  onClick={() => copyPacketText("Answers", applicationPacket?.files["answers.json"])}
+                  type="button"
+                >
+                  Copy Answers
+                </button>
+                <button
+                  className={`primary${selectedApplicationAccepted ? "" : " locked"}`}
+                  disabled={!selectedApplicationAccepted || selectedApplicationSubmitted || isUpdatingSubmission}
+                  onClick={markSelectedApplicationSubmitted}
+                  type="button"
+                >
+                  {selectedApplicationSubmitted ? "Submitted" : isUpdatingSubmission ? "Saving" : "Mark Submitted"}
+                </button>
+              </div>
             </section>
 
             <footer className="submit-bar">
@@ -655,7 +771,7 @@ export default function Home() {
                 <button className="secondary" disabled type="button">No Job URL</button>
               )}
               <button className={`primary${selectedApplicationAccepted ? "" : " locked"}`} type="button">
-                {selectedApplicationAccepted ? "Review Final" : "Final Locked"}
+                {selectedApplicationSubmitted ? "Submitted" : selectedApplicationAccepted ? "Ready to Submit" : "Final Locked"}
               </button>
             </footer>
           </section>

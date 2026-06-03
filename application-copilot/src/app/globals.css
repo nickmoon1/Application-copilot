@@ -436,7 +436,7 @@ h3 {
 .checklist {
   margin-top: 16px;
   display: grid;
-  grid-template-columns: repeat(4, minmax(160px, 1fr));
+  grid-template-columns: repeat(5, minmax(150px, 1fr));
   gap: 10px;
 }
 
@@ -467,6 +467,29 @@ h3 {
 .check-item.done span {
   background: var(--green);
   border-color: var(--green);
+}
+
+.submission-assist {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  border: 1px solid #bfdfd0;
+  border-radius: 8px;
+  background: #effaf4;
+}
+
+.submission-assist p {
+  margin-top: 6px;
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.submission-assist.locked-assist {
+  border-color: #ead2b9;
+  background: #fff7ed;
 }
 
 .workspace {
@@ -693,7 +716,8 @@ dd {
   .application-row,
   .detail-meta,
   .detail-grid,
-  .checklist {
+  .checklist,
+  .submission-assist {
     grid-template-columns: 1fr;
   }
 
