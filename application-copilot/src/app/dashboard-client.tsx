@@ -397,27 +397,6 @@ export default function DashboardClient({ initialApplications }: DashboardClient
     }
   }
 
-  async function markSelectedApplicationSubmitted() {
-    if (!selectedApplication) return;
-
-    setIsUpdatingSubmission(true);
-    setCreatePrError(null);
-
-    try {
-      const updatedApplication = await updateApplicationStatus(selectedApplication.id, "SUBMITTED");
-      setSavedApplications((current) =>
-        current.map((application) =>
-          application.id === updatedApplication.id ? updatedApplication : application,
-        ),
-      );
-      setSelectedApplicationId(updatedApplication.id);
-    } catch (error) {
-      setCreatePrError(error instanceof Error ? error.message : "Unable to mark application submitted");
-    } finally {
-      setIsUpdatingSubmission(false);
-    }
-  }
-
   async function markSelectedApplicationInvalid() {
     if (!selectedApplication) return;
 
@@ -865,14 +844,15 @@ export default function DashboardClient({ initialApplications }: DashboardClient
                 >
                   Copy Answers
                 </button>
-                <button
-                  className={`primary${selectedApplicationAccepted ? "" : " locked"}`}
-                  disabled={!selectedApplicationAccepted || selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}
-                  onClick={markSelectedApplicationSubmitted}
-                  type="button"
-                >
-                  {selectedApplicationSubmitted ? "Submitted" : isUpdatingSubmission ? "Saving" : "Mark Submitted"}
-                </button>
+                <form action={`/applications/${selectedApplication.id}/submit`} className="inline-form" method="post">
+                  <button
+                    className={`primary${selectedApplicationAccepted ? "" : " locked"}`}
+                    disabled={!selectedApplicationAccepted || selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}
+                    type="submit"
+                  >
+                    {selectedApplicationSubmitted ? "Submitted" : isUpdatingSubmission ? "Saving" : "Mark Submitted"}
+                  </button>
+                </form>
                 <button
                   className="secondary"
                   disabled={selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}

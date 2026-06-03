@@ -384,6 +384,10 @@ h3 {
   gap: 8px;
 }
 
+.inline-form {
+  display: inline-flex;
+}
+
 .link-button {
   display: inline-grid;
   place-items: center;
