@@ -244,6 +244,14 @@ async function createOrUpdateFile({
   message,
   content,
 }: CreateOrUpdateFileInput) {
+  const existingSha = await getExistingFileSha({
+    octokit,
+    owner,
+    repo,
+    branch,
+    path,
+  });
+
   await octokit.rest.repos.createOrUpdateFileContents({
     owner,
     repo,
@@ -251,5 +259,39 @@ async function createOrUpdateFile({
     message,
     content: Buffer.from(content, "utf8").toString("base64"),
     branch,
+    ...(existingSha ? { sha: existingSha } : {}),
   });
+}
+
+async function getExistingFileSha({
+  octokit,
+  owner,
+  repo,
+  branch,
+  path,
+}: Omit<CreateOrUpdateFileInput, "message" | "content">) {
+  try {
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path,
+      ref: branch,
+    });
+
+    if (Array.isArray(data) || data.type !== "file") {
+      return undefined;
+    }
+
+    return data.sha;
+  } catch (error) {
+    if (isGitHubNotFound(error)) {
+      return undefined;
+    }
+
+    throw error;
+  }
+}
+
+function isGitHubNotFound(error: unknown) {
+  return typeof error === "object" && error !== null && "status" in error && error.status === 404;
 }

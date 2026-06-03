@@ -469,6 +469,15 @@ h3 {
   border-color: var(--green);
 }
 
+.check-item.warned {
+  color: var(--amber);
+}
+
+.check-item.warned span {
+  background: var(--amber);
+  border-color: var(--amber);
+}
+
 .submission-assist {
   margin-top: 16px;
   display: grid;

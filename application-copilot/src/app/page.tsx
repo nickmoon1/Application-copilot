@@ -127,6 +127,16 @@ function isSubmittedStatus(status: string) {
   return status === "SUBMITTED";
 }
 
+function isTerminalInactiveStatus(status: string) {
+  return status === "INVALID_JOB" || status === "NOT_APPLYING";
+}
+
+function getApplicationStatusClass(status: string) {
+  if (isAcceptedStatus(status) || isSubmittedStatus(status)) return "ready";
+  if (isTerminalInactiveStatus(status) || status === "CHANGES_REQUESTED") return "warn";
+  return "pr";
+}
+
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("en-US", {
     month: "short",
@@ -164,6 +174,7 @@ export default function Home() {
   const isReady = selectedJob.status === "Ready" || isApproved;
   const selectedApplicationAccepted = selectedApplication ? isAcceptedStatus(selectedApplication.status) : false;
   const selectedApplicationSubmitted = selectedApplication ? isSubmittedStatus(selectedApplication.status) : false;
+  const selectedApplicationInactive = selectedApplication ? isTerminalInactiveStatus(selectedApplication.status) : false;
 
   useEffect(() => {
     void loadApplications();
@@ -249,7 +260,7 @@ export default function Home() {
   }
 
   async function checkSavedApplication(application: SavedApplication) {
-    if (isSubmittedStatus(application.status)) {
+    if (isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status)) {
       setSelectedApplicationId(application.id);
       setTrackedPullNumber(application.prNumber);
       setApprovalStatus(application.status);
@@ -344,6 +355,28 @@ export default function Home() {
       setSelectedApplicationId(updatedApplication.id);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to mark application submitted");
+    } finally {
+      setIsUpdatingSubmission(false);
+    }
+  }
+
+  async function markSelectedApplicationInvalid() {
+    if (!selectedApplication) return;
+
+    setIsUpdatingSubmission(true);
+    setCreatePrError(null);
+
+    try {
+      const updatedApplication = await updateApplicationStatus(selectedApplication.id, "INVALID_JOB");
+      setSavedApplications((current) =>
+        current.map((application) =>
+          application.id === updatedApplication.id ? updatedApplication : application,
+        ),
+      );
+      setSelectedApplicationId(updatedApplication.id);
+      setApprovalStatus("INVALID_JOB");
+    } catch (error) {
+      setCreatePrError(error instanceof Error ? error.message : "Unable to mark application invalid");
     } finally {
       setIsUpdatingSubmission(false);
     }
@@ -549,7 +582,7 @@ export default function Home() {
                       <span>{application.matchScore}% match</span>
                     </div>
                   </div>
-                  <span className={`pill ${application.status === "MERGED" || application.status === "APPROVED" ? "ready" : "pr"}`}>
+                  <span className={`pill ${getApplicationStatusClass(application.status)}`}>
                     {application.status}
                   </span>
                   <div className="row-actions">
@@ -561,12 +594,16 @@ export default function Home() {
                     </a>
                     <button
                       className="secondary"
-                      disabled={checkingApplicationId === application.id || isSubmittedStatus(application.status)}
+                      disabled={
+                        checkingApplicationId === application.id ||
+                        isSubmittedStatus(application.status) ||
+                        isTerminalInactiveStatus(application.status)
+                      }
                       onClick={() => checkSavedApplication(application)}
                       type="button"
                     >
-                      {isSubmittedStatus(application.status)
-                        ? "Submitted"
+                      {isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status)
+                        ? "Closed"
                         : checkingApplicationId === application.id
                           ? "Checking"
                           : "Check Status"}
@@ -587,7 +624,7 @@ export default function Home() {
                 <p className="eyebrow">Application Detail</p>
                 <h2>{selectedApplication.company} - {selectedApplication.role}</h2>
               </div>
-              <span className={`pill ${selectedApplicationAccepted ? "ready" : "pr"}`}>
+              <span className={`pill ${getApplicationStatusClass(selectedApplication.status)}`}>
                 {selectedApplication.status}
               </span>
             </div>
@@ -712,16 +749,28 @@ export default function Home() {
                 <span />
                 <strong>Application submitted</strong>
               </div>
+              <div className={`check-item ${selectedApplicationInactive ? "warned" : ""}`}>
+                <span />
+                <strong>Not applying</strong>
+              </div>
             </section>
 
             <section className={`submission-assist ${selectedApplicationAccepted ? "" : "locked-assist"}`}>
               <div>
                 <p className="eyebrow">Submission Assist</p>
-                <h3>{selectedApplicationAccepted ? "Ready for manual submission" : "Waiting for PR approval"}</h3>
+                <h3>
+                  {selectedApplicationInactive
+                    ? "Application closed"
+                    : selectedApplicationAccepted
+                      ? "Ready for manual submission"
+                      : "Waiting for PR approval"}
+                </h3>
                 <p>
-                  {selectedApplicationAccepted
-                    ? "Open the job page, copy the approved materials, complete the employer form, then mark this application submitted."
-                    : "Approve or merge the GitHub PR before using the submission tools."}
+                  {selectedApplicationInactive
+                    ? "This record is retained for audit history, but it is not part of the active submission queue."
+                    : selectedApplicationAccepted
+                      ? "Open the job page, copy the approved materials, complete the employer form, then mark this application submitted."
+                      : "Approve or merge the GitHub PR before using the submission tools."}
                 </p>
               </div>
               <div className="row-actions">
@@ -734,7 +783,7 @@ export default function Home() {
                 )}
                 <button
                   className="secondary"
-                  disabled={!selectedApplicationAccepted || !applicationPacket?.files["cover-letter.md"]}
+                  disabled={!selectedApplicationAccepted || selectedApplicationInactive || !applicationPacket?.files["cover-letter.md"]}
                   onClick={() => copyPacketText("Cover letter", applicationPacket?.files["cover-letter.md"])}
                   type="button"
                 >
@@ -742,7 +791,7 @@ export default function Home() {
                 </button>
                 <button
                   className="secondary"
-                  disabled={!selectedApplicationAccepted || !applicationPacket?.files["answers.json"]}
+                  disabled={!selectedApplicationAccepted || selectedApplicationInactive || !applicationPacket?.files["answers.json"]}
                   onClick={() => copyPacketText("Answers", applicationPacket?.files["answers.json"])}
                   type="button"
                 >
@@ -750,11 +799,19 @@ export default function Home() {
                 </button>
                 <button
                   className={`primary${selectedApplicationAccepted ? "" : " locked"}`}
-                  disabled={!selectedApplicationAccepted || selectedApplicationSubmitted || isUpdatingSubmission}
+                  disabled={!selectedApplicationAccepted || selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}
                   onClick={markSelectedApplicationSubmitted}
                   type="button"
                 >
                   {selectedApplicationSubmitted ? "Submitted" : isUpdatingSubmission ? "Saving" : "Mark Submitted"}
+                </button>
+                <button
+                  className="secondary"
+                  disabled={selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}
+                  onClick={markSelectedApplicationInvalid}
+                  type="button"
+                >
+                  {selectedApplicationInactive ? "Invalid" : "Mark Invalid"}
                 </button>
               </div>
             </section>
@@ -771,7 +828,13 @@ export default function Home() {
                 <button className="secondary" disabled type="button">No Job URL</button>
               )}
               <button className={`primary${selectedApplicationAccepted ? "" : " locked"}`} type="button">
-                {selectedApplicationSubmitted ? "Submitted" : selectedApplicationAccepted ? "Ready to Submit" : "Final Locked"}
+                {selectedApplicationInactive
+                  ? "Not Applying"
+                  : selectedApplicationSubmitted
+                    ? "Submitted"
+                    : selectedApplicationAccepted
+                      ? "Ready to Submit"
+                      : "Final Locked"}
               </button>
             </footer>
           </section>
