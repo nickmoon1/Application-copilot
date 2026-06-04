@@ -276,6 +276,7 @@ h3 {
 }
 
 .metrics article,
+.discovery-panel,
 .intake-panel,
 .applications-panel,
 .application-detail-panel,
@@ -300,6 +301,37 @@ h3 {
 .intake-panel {
   margin-bottom: 16px;
   padding: 18px;
+}
+
+.discovery-panel {
+  margin-bottom: 16px;
+  padding: 18px;
+}
+
+.discovery-list {
+  margin-top: 16px;
+  display: grid;
+  gap: 12px;
+}
+
+.discovery-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+}
+
+.discovery-card p {
+  color: var(--muted);
+  line-height: 1.45;
+}
+
+.sync-note {
+  margin-top: 12px;
+  color: var(--muted);
+  font-size: 13px;
 }
 
 .applications-panel {

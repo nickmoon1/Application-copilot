@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
+import { type DiscoveredJob } from "@/lib/job-discovery";
 
 const jobs = [
   {
@@ -157,9 +159,15 @@ function formatDate(value: string) {
 
 type DashboardClientProps = {
   initialApplications: SavedApplication[];
+  initialDiscoveredJobs: DiscoveredJob[];
+  initialDiscoveryAt: string | null;
 };
 
-export default function DashboardClient({ initialApplications }: DashboardClientProps) {
+export default function DashboardClient({
+  initialApplications,
+  initialDiscoveredJobs,
+  initialDiscoveryAt,
+}: DashboardClientProps) {
   const [activeNav, setActiveNav] = useState("Queue");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [jobDraft, setJobDraft] = useState(initialJobDraft);
@@ -177,6 +185,8 @@ export default function DashboardClient({ initialApplications }: DashboardClient
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [createPrError, setCreatePrError] = useState<string | null>(null);
+  const discoveredJobs = initialDiscoveredJobs;
+  const lastDiscoveryAt = initialDiscoveryAt;
   const selectedApplication = useMemo(
     () =>
       savedApplications.find((application) => application.id === selectedApplicationId) ??
@@ -273,6 +283,13 @@ export default function DashboardClient({ initialApplications }: DashboardClient
 
   async function createApplicationPr() {
     setIsCreatingPr(true);
+
+    await createApplicationPrFromDraft(jobDraft);
+
+    setIsCreatingPr(false);
+  }
+
+  async function createApplicationPrFromDraft(draft: typeof initialJobDraft) {
     setCreatePrError(null);
     setPrUrl(null);
 
@@ -282,7 +299,7 @@ export default function DashboardClient({ initialApplications }: DashboardClient
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(jobDraft),
+        body: JSON.stringify(draft),
       });
       const data = await response.json();
 
@@ -297,8 +314,6 @@ export default function DashboardClient({ initialApplications }: DashboardClient
       setSelectedApplicationId(data.application.id);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
-    } finally {
-      setIsCreatingPr(false);
     }
   }
 
@@ -479,7 +494,9 @@ export default function DashboardClient({ initialApplications }: DashboardClient
             <button className="secondary" disabled={isCheckingApproval} onClick={checkApproval} type="button">
               {isCheckingApproval ? "Checking" : `Check PR #${trackedPullNumber}`}
             </button>
-            <button className="primary" type="button">Find Jobs</button>
+            <Link className="primary link-button" href="/?discover=1#discovered-jobs">
+              Find Jobs
+            </Link>
           </div>
         </header>
 
@@ -524,6 +541,71 @@ export default function DashboardClient({ initialApplications }: DashboardClient
               <strong>{metric.value}</strong>
             </article>
           ))}
+        </section>
+
+        <section className="discovery-panel" id="discovered-jobs" aria-label="Discovered jobs">
+          <div className="panel-head">
+            <div>
+              <p className="eyebrow">Automated Discovery</p>
+              <h2>Found Jobs</h2>
+            </div>
+            <span className="count-label">
+              {discoveredJobs.length > 0
+                  ? `${discoveredJobs.length} candidates`
+                  : "Not run"}
+            </span>
+          </div>
+
+          {discoveredJobs.length > 0 ? (
+            <div className="discovery-list">
+              {discoveredJobs.map((candidate) => (
+                <article className="discovery-card" key={candidate.id}>
+                  <div>
+                    <p className="eyebrow">{candidate.company}</p>
+                    <h3>{candidate.role}</h3>
+                    <div className="job-meta">
+                      <span>{candidate.location}</span>
+                      <span>{candidate.source}</span>
+                      <span>Posted {formatDate(candidate.posted)}</span>
+                    </div>
+                  </div>
+                  <p>{candidate.summary}</p>
+                  <div className="tag-row">
+                    <span className="pill ready">{candidate.matchScore}% match</span>
+                    <span className="pill">{candidate.validationStatus}</span>
+                    {candidate.keywords.slice(0, 4).map((keyword) => (
+                      <span className="pill" key={keyword}>{keyword}</span>
+                    ))}
+                  </div>
+                  <div className="row-actions">
+                    <a className="secondary link-button" href={candidate.jobUrl} rel="noreferrer" target="_blank">
+                      Open Job
+                    </a>
+                    <form action="/github/create-pr" className="inline-form" method="post">
+                      <input name="company" type="hidden" value={candidate.company} />
+                      <input name="role" type="hidden" value={candidate.role} />
+                      <input name="location" type="hidden" value={candidate.location} />
+                      <input name="source" type="hidden" value={candidate.source} />
+                      <input name="jobUrl" type="hidden" value={candidate.jobUrl} />
+                      <input name="matchScore" type="hidden" value={candidate.matchScore} />
+                      <input name="notes" type="hidden" value={candidate.notes} />
+                      <button className="primary" type="submit">
+                        Create PR
+                      </button>
+                    </form>
+                  </div>
+                </article>
+              ))}
+            </div>
+          ) : (
+            <p className="empty-state">
+              Click Find Jobs to search configured Dallas-area sources and stage strong matches for review.
+            </p>
+          )}
+
+          {lastDiscoveryAt && (
+            <p className="sync-note">Last discovery run: {new Date(lastDiscoveryAt).toLocaleString()}</p>
+          )}
         </section>
 
         <section className="intake-panel" id="manual-intake" aria-label="Manual job intake">
