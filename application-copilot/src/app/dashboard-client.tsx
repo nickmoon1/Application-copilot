@@ -473,6 +473,9 @@ export default function DashboardClient({ initialApplications }: DashboardClient
           </div>
           <div className="actions">
             <button className="icon-button" onClick={loadApplications} type="button" aria-label="Refresh applications" title="Refresh applications">R</button>
+            <form action="/github/sync-applications" className="inline-form" method="post">
+              <button className="secondary" type="submit">Sync GitHub</button>
+            </form>
             <button className="secondary" disabled={isCheckingApproval} onClick={checkApproval} type="button">
               {isCheckingApproval ? "Checking" : `Check PR #${trackedPullNumber}`}
             </button>

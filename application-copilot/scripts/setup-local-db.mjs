@@ -1,6 +1,7 @@
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
 
-const dbPath = "/private/tmp/application-copilot-dev.db";
+const dbPath = fileURLToPath(new URL("../prisma/dev.db", import.meta.url));
 
 const schema = `
 CREATE TABLE IF NOT EXISTS Application (
