@@ -6,6 +6,7 @@ export const dynamic = "force-dynamic";
 
 type PageProps = {
   searchParams?: Promise<{
+    application?: string;
     discover?: string;
   }>;
 };
@@ -48,6 +49,7 @@ export default async function Home({ searchParams }: PageProps) {
       initialApplications={initialApplications}
       initialDiscoveredJobs={untrackedCandidates}
       initialDiscoveryAt={discovery?.searchedAt ?? null}
+      initialSelectedApplicationId={params?.application ?? null}
     />
   );
 }

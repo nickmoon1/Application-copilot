@@ -161,18 +161,24 @@ type DashboardClientProps = {
   initialApplications: SavedApplication[];
   initialDiscoveredJobs: DiscoveredJob[];
   initialDiscoveryAt: string | null;
+  initialSelectedApplicationId: string | null;
 };
 
 export default function DashboardClient({
   initialApplications,
   initialDiscoveredJobs,
   initialDiscoveryAt,
+  initialSelectedApplicationId,
 }: DashboardClientProps) {
   const [activeNav, setActiveNav] = useState("Queue");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [jobDraft, setJobDraft] = useState(initialJobDraft);
   const [savedApplications, setSavedApplications] = useState<SavedApplication[]>(initialApplications);
-  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(initialApplications[0]?.id ?? null);
+  const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(
+    initialApplications.some((application) => application.id === initialSelectedApplicationId)
+      ? initialSelectedApplicationId
+      : initialApplications[0]?.id ?? null,
+  );
   const [applicationPacket, setApplicationPacket] = useState<ApplicationPacket | null>(null);
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
@@ -180,7 +186,6 @@ export default function DashboardClient({
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
-  const [checkingApplicationId, setCheckingApplicationId] = useState<string | null>(null);
   const [isCreatingPr, setIsCreatingPr] = useState(false);
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
@@ -329,38 +334,6 @@ export default function DashboardClient({
       setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
     } finally {
       setIsCheckingApproval(false);
-    }
-  }
-
-  async function checkSavedApplication(application: SavedApplication) {
-    if (isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status)) {
-      setSelectedApplicationId(application.id);
-      setTrackedPullNumber(application.prNumber);
-      setApprovalStatus(application.status);
-      return;
-    }
-
-    setCheckingApplicationId(application.id);
-    setCreatePrError(null);
-
-    try {
-      const status = await fetchApprovalStatus(application.prNumber);
-
-      setTrackedPullNumber(application.prNumber);
-      setApprovalStatus(status);
-      const updatedApplication = await updateApplicationStatus(application.id, status);
-      setSavedApplications((current) =>
-        current.map((item) =>
-          item.id === application.id
-            ? updatedApplication
-            : item,
-        ),
-      );
-      setSelectedApplicationId(application.id);
-    } catch (error) {
-      setCreatePrError(error instanceof Error ? error.message : "Unable to check pull request status");
-    } finally {
-      setCheckingApplicationId(null);
     }
   }
 
@@ -718,28 +691,21 @@ export default function DashboardClient({
                     {application.status}
                   </span>
                   <div className="row-actions">
-                    <button className="secondary" onClick={() => setSelectedApplicationId(application.id)} type="button">
+                    <Link className="secondary link-button" href={`/?application=${application.id}#application-detail`}>
                       View
-                    </button>
+                    </Link>
                     <a className="ghost link-button" href={application.prUrl} rel="noreferrer" target="_blank">
                       Open PR
                     </a>
-                    <button
-                      className="secondary"
-                      disabled={
-                        checkingApplicationId === application.id ||
-                        isSubmittedStatus(application.status) ||
-                        isTerminalInactiveStatus(application.status)
-                      }
-                      onClick={() => checkSavedApplication(application)}
-                      type="button"
-                    >
-                      {isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status)
-                        ? "Closed"
-                        : checkingApplicationId === application.id
-                          ? "Checking"
-                          : "Check Status"}
-                    </button>
+                    {isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status) ? (
+                      <button className="secondary" disabled type="button">Closed</button>
+                    ) : (
+                      <form action={`/applications/${application.id}/check-status`} className="inline-form" method="post">
+                        <button className="secondary" type="submit">
+                          Check Status
+                        </button>
+                      </form>
+                    )}
                   </div>
                 </article>
               ))}
@@ -750,7 +716,7 @@ export default function DashboardClient({
         </section>
 
         {selectedApplication && (
-          <section className="application-detail-panel" aria-label="Application detail view">
+          <section className="application-detail-panel" id="application-detail" aria-label="Application detail view">
             <div className="detail-top">
               <div>
                 <p className="eyebrow">Application Detail</p>
