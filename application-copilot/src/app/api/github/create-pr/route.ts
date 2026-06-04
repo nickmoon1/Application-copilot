@@ -17,6 +17,20 @@ export async function POST(request: Request) {
     const config = requireGitHubConfig();
     const octokit = getInstallationOctokit();
     const application = await parseApplicationRequest(request);
+    const duplicateApplication = await findDuplicateApplication(application);
+
+    if (duplicateApplication) {
+      return NextResponse.json(
+        {
+          ok: false,
+          duplicate: true,
+          error: `Application already exists for ${duplicateApplication.company} - ${duplicateApplication.role} as PR #${duplicateApplication.prNumber}.`,
+          application: duplicateApplication,
+        },
+        { status: 409 },
+      );
+    }
+
     const companySlug = slugify(application.company);
     const roleSlug = slugify(application.role);
     const slug = `${Date.now()}-${companySlug}-${roleSlug}`;
@@ -195,6 +209,66 @@ async function parseApplicationRequest(request: Request) {
     notes,
     createdAt: new Date().toISOString(),
   };
+}
+
+async function findDuplicateApplication(application: Awaited<ReturnType<typeof parseApplicationRequest>>) {
+  const normalizedJobUrl = normalizeUrl(application.jobUrl);
+
+  if (normalizedJobUrl) {
+    const applications = await prisma.application.findMany({
+      where: {
+        jobUrl: {
+          not: "",
+        },
+      },
+      orderBy: {
+        createdAt: "desc",
+      },
+    });
+    const duplicateByUrl = applications
+      .filter((item) => normalizeUrl(item.jobUrl) === normalizedJobUrl)
+      .sort(compareDuplicatePriority)[0];
+
+    if (duplicateByUrl) {
+      return duplicateByUrl;
+    }
+  }
+
+  const applications = await prisma.application.findMany({
+    where: {
+      company: application.company,
+      role: application.role,
+    },
+  });
+
+  return applications.sort(compareDuplicatePriority)[0] ?? null;
+}
+
+function normalizeUrl(value: string) {
+  return value.trim().replace(/\/$/, "").toLowerCase();
+}
+
+function compareDuplicatePriority(
+  left: { status: string; updatedAt: Date; createdAt: Date },
+  right: { status: string; updatedAt: Date; createdAt: Date },
+) {
+  const statusDifference = getDuplicateStatusPriority(right.status) - getDuplicateStatusPriority(left.status);
+
+  if (statusDifference !== 0) {
+    return statusDifference;
+  }
+
+  return right.createdAt.getTime() - left.createdAt.getTime();
+}
+
+function getDuplicateStatusPriority(status: string) {
+  if (status === "SUBMITTED") return 5;
+  if (status === "MERGED") return 4;
+  if (status === "APPROVED" || status === "READY_TO_SUBMIT") return 3;
+  if (status === "PENDING_REVIEW" || status === "CHANGES_REQUESTED") return 2;
+  if (status === "INVALID_JOB" || status === "NOT_APPLYING") return 1;
+
+  return 0;
 }
 
 function requireText(value: string | undefined, field: string) {

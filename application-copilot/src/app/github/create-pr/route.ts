@@ -22,6 +22,12 @@ export async function POST(request: Request) {
   const data = await response.json().catch(() => ({}));
   const redirectUrl = new URL("/#github-reviews", request.url);
 
+  if (response.status === 409 && data.duplicate === true) {
+    redirectUrl.searchParams.set("duplicate", String(data.application?.prNumber ?? "1"));
+
+    return NextResponse.redirect(redirectUrl, 303);
+  }
+
   if (!response.ok || data.ok === false) {
     redirectUrl.searchParams.set("error", data.error ?? "Unable to create pull request");
 
