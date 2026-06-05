@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
+import { generateApplicationPacket } from "@/lib/application-packet";
 import { getInstallationOctokit, requireGitHubConfig } from "@/lib/github";
 
 type JobDraftRequest = {
@@ -36,6 +37,7 @@ export async function POST(request: Request) {
     const slug = `${Date.now()}-${companySlug}-${roleSlug}`;
     const branchName = `application/${slug}`;
     const folder = `applications/${companySlug}/${roleSlug}`;
+    const packet = generateApplicationPacket(application);
 
     const { data: repo } = await octokit.rest.repos.get({
       owner: config.owner,
@@ -74,19 +76,7 @@ export async function POST(request: Request) {
       branch: branchName,
       path: `${folder}/answers.json`,
       message: `Add draft answers for ${application.company}`,
-      content: JSON.stringify(
-        {
-          whyThisRole:
-            `This ${application.role} role matches my data analytics, SQL, Python, dashboarding, and stakeholder communication experience.`,
-          location:
-            `I am based in Dallas, TX and interested in Dallas-area roles including ${application.location}.`,
-          workStyle:
-            "I can work cross-functionally with business, operations, and technical teams to turn data into clear recommendations.",
-          notesForReview: application.notes || "No extra notes provided.",
-        },
-        null,
-        2,
-      ),
+      content: packet.answers,
     });
 
     await createOrUpdateFile({
@@ -96,16 +86,7 @@ export async function POST(request: Request) {
       branch: branchName,
       path: `${folder}/cover-letter.md`,
       message: `Add draft cover letter for ${application.company}`,
-      content: `# ${application.company} - ${application.role}
-
-Dear Hiring Team,
-
-I am interested in the ${application.role} role because it aligns with my experience in SQL, Python, dashboard development, exploratory analysis, and business-facing data storytelling.
-
-My recent work includes predictive modeling, Tableau dashboards, data cleaning pipelines, and applied analytics projects that translate technical findings into practical recommendations.
-
-${application.notes ? `Additional review notes: ${application.notes}\n\n` : ""}Thank you for your consideration.
-`,
+      content: packet.coverLetter,
     });
 
     await createOrUpdateFile({
@@ -115,15 +96,17 @@ ${application.notes ? `Additional review notes: ${application.notes}\n\n` : ""}T
       branch: branchName,
       path: `${folder}/checklist.md`,
       message: "Add application review checklist",
-      content: `# Review Checklist
+      content: packet.checklist,
+    });
 
-- [ ] Confirm role, company, and location.
-- [ ] Confirm job URL and source.
-- [ ] Review salary and hybrid-work expectations.
-- [ ] Review generated answers.
-- [ ] Review cover letter.
-- [ ] Approve this pull request before final submission.
-`,
+    await createOrUpdateFile({
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      branch: branchName,
+      path: `${folder}/review-notes.md`,
+      message: "Add transparent review notes",
+      content: packet.reviewNotes,
     });
 
     const { data: pull } = await octokit.rest.pulls.create({

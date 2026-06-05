@@ -177,7 +177,9 @@ export default function DashboardClient({
   const [selectedApplicationId, setSelectedApplicationId] = useState<string | null>(
     initialApplications.some((application) => application.id === initialSelectedApplicationId)
       ? initialSelectedApplicationId
-      : initialApplications[0]?.id ?? null,
+      : initialApplications.find((application) => !isTerminalInactiveStatus(application.status))?.id ??
+        initialApplications[0]?.id ??
+        null,
   );
   const [applicationPacket, setApplicationPacket] = useState<ApplicationPacket | null>(null);
   const [isLoadingPacket, setIsLoadingPacket] = useState(false);
@@ -192,15 +194,24 @@ export default function DashboardClient({
   const [createPrError, setCreatePrError] = useState<string | null>(null);
   const discoveredJobs = initialDiscoveredJobs;
   const lastDiscoveryAt = initialDiscoveryAt;
+  const activeApplications = useMemo(
+    () => savedApplications.filter((application) => !isTerminalInactiveStatus(application.status)),
+    [savedApplications],
+  );
+  const archivedApplications = useMemo(
+    () => savedApplications.filter((application) => isTerminalInactiveStatus(application.status)),
+    [savedApplications],
+  );
   const selectedApplication = useMemo(
     () =>
       savedApplications.find((application) => application.id === selectedApplicationId) ??
+      activeApplications[0] ??
       savedApplications[0] ??
       null,
-    [savedApplications, selectedApplicationId],
+    [activeApplications, savedApplications, selectedApplicationId],
   );
   const queueJobs = useMemo(() => {
-    if (savedApplications.length === 0) {
+    if (activeApplications.length === 0) {
       return jobs.map((job) => ({
         id: `${job.company}-${job.title}`,
         applicationId: null,
@@ -217,7 +228,7 @@ export default function DashboardClient({
       }));
     }
 
-    return savedApplications.map((application) => {
+    return activeApplications.map((application) => {
       const status = getQueueStatus(application.status);
 
       return {
@@ -239,7 +250,7 @@ export default function DashboardClient({
             : "Use Check Status after approving or merging the GitHub PR.",
       };
     });
-  }, [savedApplications]);
+  }, [activeApplications]);
   const selectedJob = useMemo(() => queueJobs[selectedIndex] ?? queueJobs[0], [queueJobs, selectedIndex]);
   const isApproved = approvalStatus === "APPROVED" || approvalStatus === "MERGED";
   const isReady = selectedJob?.status === "Ready" || isApproved;
@@ -666,50 +677,107 @@ export default function DashboardClient({
               <p className="eyebrow">Recent Applications</p>
               <h2>GitHub PR Tracker</h2>
             </div>
-            <span className="count-label">{isLoadingApplications ? "Loading" : `${savedApplications.length} saved`}</span>
+            <span className="count-label">
+              {isLoadingApplications
+                ? "Loading"
+                : `${activeApplications.length} active / ${archivedApplications.length} archived`}
+            </span>
           </div>
 
           {isLoadingApplications ? (
             <p className="empty-state">Loading saved applications...</p>
           ) : savedApplications.length > 0 ? (
-            <div className="applications-table">
-              {savedApplications.map((application) => (
-                <article
-                  className={`application-row${application.id === selectedApplication?.id ? " selected" : ""}`}
-                  key={application.id}
-                >
-                  <div>
-                    <p className="eyebrow">PR #{application.prNumber}</p>
-                    <h3>{application.company} - {application.role}</h3>
-                    <div className="job-meta">
-                      <span>{application.location}</span>
-                      <span>{application.source}</span>
-                      <span>{application.matchScore}% match</span>
-                    </div>
+            <>
+              <div className="tracker-group">
+                <div className="tracker-heading">
+                  <h3>Active Tracker</h3>
+                  <span>{activeApplications.length} roles</span>
+                </div>
+                {activeApplications.length > 0 ? (
+                  <div className="applications-table">
+                    {activeApplications.map((application) => (
+                      <article
+                        className={`application-row${application.id === selectedApplication?.id ? " selected" : ""}`}
+                        key={application.id}
+                      >
+                        <div>
+                          <p className="eyebrow">PR #{application.prNumber}</p>
+                          <h3>{application.company} - {application.role}</h3>
+                          <div className="job-meta">
+                            <span>{application.location}</span>
+                            <span>{application.source}</span>
+                            <span>{application.matchScore}% match</span>
+                          </div>
+                        </div>
+                        <span className={`pill ${getApplicationStatusClass(application.status)}`}>
+                          {application.status}
+                        </span>
+                        <div className="row-actions">
+                          <Link className="secondary link-button" href={`/?application=${application.id}#application-detail`}>
+                            View
+                          </Link>
+                          <a className="ghost link-button" href={application.prUrl} rel="noreferrer" target="_blank">
+                            Open PR
+                          </a>
+                          {isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status) ? (
+                            <button className="secondary" disabled type="button">Closed</button>
+                          ) : (
+                            <form action={`/applications/${application.id}/check-status`} className="inline-form" method="post">
+                              <button className="secondary" type="submit">
+                                Check Status
+                              </button>
+                            </form>
+                          )}
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                  <span className={`pill ${getApplicationStatusClass(application.status)}`}>
-                    {application.status}
-                  </span>
-                  <div className="row-actions">
-                    <Link className="secondary link-button" href={`/?application=${application.id}#application-detail`}>
-                      View
-                    </Link>
-                    <a className="ghost link-button" href={application.prUrl} rel="noreferrer" target="_blank">
-                      Open PR
-                    </a>
-                    {isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status) ? (
-                      <button className="secondary" disabled type="button">Closed</button>
-                    ) : (
-                      <form action={`/applications/${application.id}/check-status`} className="inline-form" method="post">
-                        <button className="secondary" type="submit">
-                          Check Status
-                        </button>
-                      </form>
-                    )}
+                ) : (
+                  <p className="empty-state">No active applications yet.</p>
+                )}
+              </div>
+
+              <details className="tracker-group archive-folder">
+                <summary>
+                  <span>Archived Invalid Roles</span>
+                  <strong>{archivedApplications.length}</strong>
+                </summary>
+                {archivedApplications.length > 0 ? (
+                  <div className="applications-table archived-table">
+                    {archivedApplications.map((application) => (
+                      <article
+                        className={`application-row archived-row${application.id === selectedApplication?.id ? " selected" : ""}`}
+                        key={application.id}
+                      >
+                        <div>
+                          <p className="eyebrow">PR #{application.prNumber}</p>
+                          <h3>{application.company} - {application.role}</h3>
+                          <div className="job-meta">
+                            <span>{application.location}</span>
+                            <span>{application.source}</span>
+                            <span>{application.matchScore}% match</span>
+                          </div>
+                        </div>
+                        <span className={`pill ${getApplicationStatusClass(application.status)}`}>
+                          {application.status}
+                        </span>
+                        <div className="row-actions">
+                          <Link className="secondary link-button" href={`/?application=${application.id}#application-detail`}>
+                            View
+                          </Link>
+                          <a className="ghost link-button" href={application.prUrl} rel="noreferrer" target="_blank">
+                            Open PR
+                          </a>
+                          <button className="secondary" disabled type="button">Closed</button>
+                        </div>
+                      </article>
+                    ))}
                   </div>
-                </article>
-              ))}
-            </div>
+                ) : (
+                  <p className="empty-state">No invalid or closed-out roles archived.</p>
+                )}
+              </details>
+            </>
           ) : (
             <p className="empty-state">Create an application PR to start tracking it here.</p>
           )}
@@ -822,6 +890,28 @@ export default function DashboardClient({
                 </div>
                 <pre className="file-preview">
                   {isLoadingPacket ? "Loading job snapshot..." : applicationPacket?.files["job.json"] ?? "Job snapshot not available."}
+                </pre>
+              </article>
+            </section>
+
+            <section className="detail-grid">
+              <article className="review-box wide-review">
+                <div className="review-head">
+                  <div>
+                    <p className="eyebrow">Transparent Review</p>
+                    <h3>Generation Notes</h3>
+                  </div>
+                  <button
+                    className="ghost"
+                    disabled={!applicationPacket?.files["review-notes.md"]}
+                    onClick={() => copyPacketText("Review notes", applicationPacket?.files["review-notes.md"])}
+                    type="button"
+                  >
+                    {copiedLabel === "Review notes" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <pre className="file-preview">
+                  {isLoadingPacket ? "Loading review notes..." : applicationPacket?.files["review-notes.md"] ?? "Review notes not available."}
                 </pre>
               </article>
             </section>

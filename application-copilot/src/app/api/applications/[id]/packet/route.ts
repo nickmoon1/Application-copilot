@@ -8,7 +8,7 @@ type Params = {
   }>;
 };
 
-const packetFiles = ["job.json", "answers.json", "cover-letter.md", "checklist.md"] as const;
+const packetFiles = ["job.json", "answers.json", "cover-letter.md", "checklist.md", "review-notes.md"] as const;
 
 export async function GET(_request: Request, { params }: Params) {
   try {
@@ -40,6 +40,7 @@ export async function GET(_request: Request, { params }: Params) {
         repo: config.repo,
         branch: application.branch,
         path: `${folder}/${filename}`,
+        optional: filename === "review-notes.md",
       });
 
       files[filename] = content;
@@ -67,21 +68,34 @@ type ReadRepoFileInput = {
   repo: string;
   branch: string;
   path: string;
+  optional?: boolean;
 };
 
-async function readRepoFile({ octokit, owner, repo, branch, path }: ReadRepoFileInput) {
-  const { data } = await octokit.rest.repos.getContent({
-    owner,
-    repo,
-    path,
-    ref: branch,
-  });
+async function readRepoFile({ octokit, owner, repo, branch, path, optional }: ReadRepoFileInput) {
+  try {
+    const { data } = await octokit.rest.repos.getContent({
+      owner,
+      repo,
+      path,
+      ref: branch,
+    });
 
-  if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
-    throw new Error(`Expected file content at ${path}`);
+    if (Array.isArray(data) || data.type !== "file" || !("content" in data)) {
+      throw new Error(`Expected file content at ${path}`);
+    }
+
+    return Buffer.from(data.content, "base64").toString("utf8");
+  } catch (error) {
+    if (optional && isGitHubNotFound(error)) {
+      return "";
+    }
+
+    throw error;
   }
+}
 
-  return Buffer.from(data.content, "base64").toString("utf8");
+function isGitHubNotFound(error: unknown) {
+  return typeof error === "object" && error !== null && "status" in error && error.status === 404;
 }
 
 function getApplicationFolder(prUrl: string) {

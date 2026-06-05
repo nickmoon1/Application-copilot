@@ -21,5 +21,73 @@
     "github": "https://github.com/nickmoon1",
     "linkedin": "https://www.linkedin.com/in/moonmware/",
     "portfolio": "https://www.nickmoonmware.com/"
-  }
+  },
+  "headline": "Data Scientist / Business Analyst / Educator",
+  "skills": {
+    "programming": ["Python", "Pandas", "NumPy", "Scikit-learn", "PyCaret", "NLTK", "SQL"],
+    "machineLearning": ["Regression", "Classification", "Time Series Forecasting", "NLP", "Model Evaluation"],
+    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics"],
+    "visualization": ["Tableau", "Matplotlib", "Dashboard Development"],
+    "platforms": ["Azure", "Databricks", "Snowflake", "Linux"],
+    "dataEngineering": ["Data Pipelines", "Data Validation", "Data Quality Checks", "Failover Testing"]
+  },
+  "highlights": [
+    "Built end-to-end Python pipelines for cleaning, EDA, and feature engineering on real-world datasets.",
+    "Developed and evaluated regression and classification models for predictive insights.",
+    "Maintained real-time transportation data pipelines processing 100+ sensor inputs.",
+    "Diagnosed and resolved 50+ system and data issues using SQL, Python, and Linux.",
+    "Improved data processing efficiency by 30% through structured cleaning and validation.",
+    "Created Tableau dashboards and reports for non-technical stakeholders.",
+    "Taught Python fundamentals and mentored applied analytics and chatbot development projects."
+  ],
+  "projects": [
+    {
+      "name": "Predictive Modeling & Forecasting",
+      "summary": "Built regression, classification, and Prophet time-series models using Python, feature engineering, and validation on historical data."
+    },
+    {
+      "name": "NLP Sentiment Analysis",
+      "summary": "Used NLTK to classify customer review sentiment and translate outputs into business-friendly NPS-style metrics."
+    },
+    {
+      "name": "Tableau Dashboards",
+      "summary": "Designed dashboards to visualize trends, forecasts, and KPIs for non-technical stakeholders."
+    }
+  ],
+  "experience": [
+    {
+      "role": "Practical Data Science & Gen AI Trainee",
+      "organization": "Data Science Academy",
+      "location": "Dallas, TX",
+      "focus": ["Python pipelines", "Machine learning", "SQL exploratory analysis", "Tableau dashboards"]
+    },
+    {
+      "role": "Field Engineer (Data & Systems)",
+      "organization": "Thales Group",
+      "location": "New York, NY",
+      "focus": ["Real-time data pipelines", "Sensor inputs", "SQL", "Python", "Linux", "System reliability"]
+    },
+    {
+      "role": "Data Analyst / Research Assistant",
+      "organization": "University of Nebraska-Lincoln",
+      "location": "Lincoln, NE",
+      "focus": ["Survey and educational datasets", "Python", "SQL", "Data validation", "Visualization"]
+    },
+    {
+      "role": "Consultant and Teaching Assistant",
+      "organization": "Benedict College",
+      "location": "Columbia, SC",
+      "focus": ["Python fundamentals", "Web development", "Applied analytics", "Chatbot projects"]
+    }
+  ],
+  "education": [
+    "MS Information Systems and Business Analytics, Park University",
+    "MS Computer Science, University of Nebraska-Lincoln",
+    "BS Computer Science, Benedict College"
+  ],
+  "certifications": [
+    "Generative AI for Data Scientists - IBM",
+    "Business Analytics Fundamentals - Coursera",
+    "SQL Essential Training - LinkedIn Learning"
+  ]
 }
