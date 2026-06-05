@@ -1,4 +1,5 @@
 import profile from "@/data/profile.json";
+import answerStyle from "@/data/answer-style.json";
 
 type ApplicationDraft = {
   company: string;
@@ -13,6 +14,7 @@ type ApplicationDraft = {
 
 export function generateApplicationPacket(application: ApplicationDraft) {
   const strengths = selectStrengths(application);
+  const resumeTailoring = buildResumeTailoring(application, strengths);
   const questionsToVerify = getQuestionsToVerify(application);
   const answerDrafts = {
     whyThisRole: [
@@ -37,6 +39,8 @@ export function generateApplicationPacket(application: ApplicationDraft) {
     coverLetter: buildCoverLetter(application, strengths),
     checklist: buildChecklist(application, questionsToVerify),
     reviewNotes: buildReviewNotes(application, strengths, questionsToVerify),
+    tailoredResume: resumeTailoring,
+    answerStyle: JSON.stringify(answerStyle, null, 2),
   };
 }
 
@@ -143,6 +147,7 @@ function buildChecklist(application: ApplicationDraft, questionsToVerify: string
 - [ ] Confirm role, company, and location.
 - [ ] Confirm job URL and source.
 - [ ] Review seniority, salary, and work-location expectations.
+- [ ] Review tailored resume draft for truthful emphasis.
 - [ ] Review generated answers for accuracy.
 - [ ] Review cover letter tone and examples.
 - [ ] Confirm no claims go beyond the resume/profile evidence.
@@ -190,4 +195,85 @@ ${questionsToVerify.map((question) => `- ${question}`).join("\n")}
 
 ${application.notes || "No extra notes provided."}
 `;
+}
+
+function buildResumeTailoring(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
+  const matchedSkills = getMatchedSkills(application);
+  const prioritizedExperience = getPrioritizedExperience(application);
+
+  return `# Tailored Resume Draft
+
+Use this as a review draft for ${application.company} - ${application.role}. It should only reorder and emphasize truthful experience already present in the profile/resume.
+
+## Target Resume Summary
+
+${profile.name} is a data professional focused on analytics, data science, data engineering, and stakeholder-facing problem solving. Background includes ${strengths.primaryEvidence} Experience spans Python, SQL, machine learning, dashboards, data validation, teaching, and translating technical work into practical decisions.
+
+## Skills To Emphasize
+
+${matchedSkills.map((skill) => `- ${skill}`).join("\n")}
+
+## Experience Order For This Role
+
+${prioritizedExperience
+  .map(
+    (item) =>
+      `### ${item.role} - ${item.organization}\n${item.focus.map((focus) => `- ${focus}`).join("\n")}`,
+  )
+  .join("\n\n")}
+
+## Resume Bullet Options
+
+${strengths.evidenceUsed.map((item) => `- ${item}`).join("\n")}
+
+## Project Emphasis
+
+${strengths.projectExamples.map((item) => `- ${item}`).join("\n")}
+
+## Guardrails
+
+- Do not add tools, certifications, employers, degrees, or years of experience unless they already appear in the profile.
+- Do not imply production ownership when the evidence is project, trainee, teaching, or support experience.
+- Prefer stronger ordering and clearer phrasing over new claims.
+- Convert this Markdown into a final PDF only after human review.
+`;
+}
+
+function getMatchedSkills(application: ApplicationDraft) {
+  const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+  const allSkills = Object.values(profile.skills).flat();
+  const matched = allSkills.filter((skill) => searchable.includes(skill.toLowerCase()));
+  const fallback = [
+    "Python",
+    "SQL",
+    "Data Cleaning",
+    "EDA",
+    "Feature Engineering",
+    "Dashboard Development",
+    "Predictive Analytics",
+    "Data Validation",
+  ];
+
+  return Array.from(new Set([...matched, ...fallback])).slice(0, 12);
+}
+
+function getPrioritizedExperience(application: ApplicationDraft) {
+  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const experience = [...profile.experience];
+
+  return experience.sort((left, right) => scoreExperience(right, searchable) - scoreExperience(left, searchable));
+}
+
+function scoreExperience(
+  item: {
+    role: string;
+    organization: string;
+    focus: string[];
+  },
+  searchable: string,
+) {
+  const haystack = `${item.role} ${item.organization} ${item.focus.join(" ")}`.toLowerCase();
+  const keywords = searchable.split(/[^a-z0-9+#.]+/).filter((keyword) => keyword.length > 2);
+
+  return keywords.reduce((score, keyword) => score + (haystack.includes(keyword) ? 1 : 0), 0);
 }

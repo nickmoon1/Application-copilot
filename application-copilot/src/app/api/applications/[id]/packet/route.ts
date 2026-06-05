@@ -8,7 +8,15 @@ type Params = {
   }>;
 };
 
-const packetFiles = ["job.json", "answers.json", "cover-letter.md", "checklist.md", "review-notes.md"] as const;
+const packetFiles = [
+  "job.json",
+  "answers.json",
+  "cover-letter.md",
+  "tailored-resume.md",
+  "answer-style.json",
+  "checklist.md",
+  "review-notes.md",
+] as const;
 
 export async function GET(_request: Request, { params }: Params) {
   try {
@@ -40,7 +48,7 @@ export async function GET(_request: Request, { params }: Params) {
         repo: config.repo,
         branch: application.branch,
         path: `${folder}/${filename}`,
-        optional: filename === "review-notes.md",
+        optional: filename === "review-notes.md" || filename === "tailored-resume.md" || filename === "answer-style.json",
       });
 
       files[filename] = content;

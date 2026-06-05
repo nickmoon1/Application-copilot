@@ -1,0 +1,29 @@
+{
+  "tone": [
+    "professional",
+    "direct",
+    "warm",
+    "practical",
+    "specific"
+  ],
+  "answerLength": {
+    "short": "2-4 sentences for standard application questions.",
+    "medium": "1-2 concise paragraphs when the prompt asks for examples.",
+    "long": "Use only when the employer asks for a detailed narrative."
+  },
+  "preferredFraming": [
+    "Lead with the direct answer first.",
+    "Use real examples from analytics, data engineering, teaching, or stakeholder work.",
+    "Connect technical work to business decisions or learner outcomes.",
+    "Stay honest about experience level and avoid overstating ownership.",
+    "Prefer clear language over buzzwords."
+  ],
+  "avoid": [
+    "Invented years of experience",
+    "Unsupported tool claims",
+    "Generic AI-sounding enthusiasm",
+    "Overly long cover-letter style answers",
+    "Claims that go beyond the resume/profile evidence"
+  ],
+  "calibrationStatus": "Starter profile. Improve this by saving examples from real application answers Nickmoon writes manually."
+}

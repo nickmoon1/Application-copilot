@@ -872,6 +872,48 @@ export default function DashboardClient({
               <article className="review-box">
                 <div className="review-head">
                   <div>
+                    <p className="eyebrow">Resume Tailoring</p>
+                    <h3>Tailored Resume Draft</h3>
+                  </div>
+                  <button
+                    className="ghost"
+                    disabled={!applicationPacket?.files["tailored-resume.md"]}
+                    onClick={() => copyPacketText("Tailored resume", applicationPacket?.files["tailored-resume.md"])}
+                    type="button"
+                  >
+                    {copiedLabel === "Tailored resume" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <pre className="file-preview tall-preview">
+                  {isLoadingPacket ? "Loading tailored resume..." : applicationPacket?.files["tailored-resume.md"] || "Tailored resume draft will appear on newly created PRs."}
+                </pre>
+              </article>
+
+              <article className="review-box">
+                <div className="review-head">
+                  <div>
+                    <p className="eyebrow">Answer Calibration</p>
+                    <h3>Answer Style Profile</h3>
+                  </div>
+                  <button
+                    className="ghost"
+                    disabled={!applicationPacket?.files["answer-style.json"]}
+                    onClick={() => copyPacketText("Answer style", applicationPacket?.files["answer-style.json"])}
+                    type="button"
+                  >
+                    {copiedLabel === "Answer style" ? "Copied" : "Copy"}
+                  </button>
+                </div>
+                <pre className="file-preview tall-preview">
+                  {isLoadingPacket ? "Loading answer style..." : applicationPacket?.files["answer-style.json"] || "Answer style profile will appear on newly created PRs."}
+                </pre>
+              </article>
+            </section>
+
+            <section className="detail-grid">
+              <article className="review-box">
+                <div className="review-head">
+                  <div>
                     <p className="eyebrow">Packet File</p>
                     <h3>Checklist</h3>
                   </div>
@@ -976,6 +1018,14 @@ export default function DashboardClient({
                   type="button"
                 >
                   Copy Letter
+                </button>
+                <button
+                  className="secondary"
+                  disabled={!selectedApplicationAccepted || selectedApplicationInactive || !applicationPacket?.files["tailored-resume.md"]}
+                  onClick={() => copyPacketText("Tailored resume", applicationPacket?.files["tailored-resume.md"])}
+                  type="button"
+                >
+                  Copy Resume
                 </button>
                 <button
                   className="secondary"

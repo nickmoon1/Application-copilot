@@ -94,6 +94,26 @@ export async function POST(request: Request) {
       owner: config.owner,
       repo: config.repo,
       branch: branchName,
+      path: `${folder}/tailored-resume.md`,
+      message: `Add tailored resume draft for ${application.company}`,
+      content: packet.tailoredResume,
+    });
+
+    await createOrUpdateFile({
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      branch: branchName,
+      path: `${folder}/answer-style.json`,
+      message: "Add answer style profile",
+      content: packet.answerStyle,
+    });
+
+    await createOrUpdateFile({
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      branch: branchName,
       path: `${folder}/checklist.md`,
       message: "Add application review checklist",
       content: packet.checklist,

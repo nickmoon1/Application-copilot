@@ -522,6 +522,10 @@ h3 {
   line-height: 1.5;
 }
 
+.tall-preview {
+  max-height: 430px;
+}
+
 .checklist {
   margin-top: 16px;
   display: grid;
