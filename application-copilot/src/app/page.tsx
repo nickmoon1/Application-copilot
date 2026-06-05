@@ -1,6 +1,7 @@
 import DashboardClient, { type SavedApplication } from "./dashboard-client";
 import { syncApplicationStatuses } from "@/lib/application-status-sync";
 import { prisma } from "@/lib/db";
+import { getInvalidDiscoveredJobIds } from "@/lib/invalid-discovered-jobs";
 import { discoverJobs } from "@/lib/job-discovery";
 
 export const dynamic = "force-dynamic";
@@ -21,6 +22,7 @@ export default async function Home({ searchParams }: PageProps) {
     },
   });
   const discovery = params?.discover === "1" ? await discoverJobs() : null;
+  const invalidDiscoveredJobIds = discovery ? await getInvalidDiscoveredJobIds() : new Set<string>();
   const trackedJobUrls = new Set(
     applications
       .map((application) => normalizeUrl(application.jobUrl))
@@ -39,6 +41,12 @@ export default async function Home({ searchParams }: PageProps) {
 
       return !trackedRoleKeys.has(getRoleKey(candidate.company, candidate.role));
     }) ?? [];
+  const activeDiscoveredCandidates = untrackedCandidates.filter(
+    (candidate) => !isInvalidDiscoveredJob(candidate) && !invalidDiscoveredJobIds.has(candidate.id),
+  );
+  const archivedDiscoveredCandidates = untrackedCandidates.filter(
+    (candidate) => isInvalidDiscoveredJob(candidate) || invalidDiscoveredJobIds.has(candidate.id),
+  );
 
   const initialApplications: SavedApplication[] = applications.map((application) => ({
     ...application,
@@ -49,7 +57,8 @@ export default async function Home({ searchParams }: PageProps) {
   return (
     <DashboardClient
       initialApplications={initialApplications}
-      initialDiscoveredJobs={untrackedCandidates}
+      initialArchivedDiscoveredJobs={archivedDiscoveredCandidates}
+      initialDiscoveredJobs={activeDiscoveredCandidates}
       initialDiscoveryAt={discovery?.searchedAt ?? null}
       initialSelectedApplicationId={params?.application ?? null}
     />
@@ -62,4 +71,8 @@ function normalizeUrl(value: string) {
 
 function getRoleKey(company: string, role: string) {
   return `${company.trim().toLowerCase()}::${role.trim().toLowerCase()}`;
+}
+
+function isInvalidDiscoveredJob(candidate: { validationStatus: string }) {
+  return candidate.validationStatus === "INVALID_URL";
 }

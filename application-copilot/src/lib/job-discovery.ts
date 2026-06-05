@@ -1,4 +1,5 @@
-import { get } from "node:https";
+import { get as httpGet } from "node:http";
+import { get as httpsGet } from "node:https";
 
 type JobSeed = {
   id: string;
@@ -15,6 +16,8 @@ type JobSeed = {
 export type DiscoveredJob = JobSeed & {
   matchScore: number;
   validationStatus: string;
+  validationDetails: string;
+  validationCheckedAt: string;
   notes: string;
 };
 
@@ -106,9 +109,12 @@ export async function discoverJobs() {
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
     ...fallbackJobs,
   ]);
-  const candidates = seeds
+  const matchedSeeds = seeds
     .filter((job) => isTargetLocation(job.location) && isTargetRole(job.role, job.keywords))
-    .map(enrichJob)
+    .sort((a, b) => scoreJob(b) - scoreJob(a));
+  const candidates = await Promise.all(matchedSeeds.map(enrichJob));
+
+  candidates
     .sort((a, b) => b.matchScore - a.matchScore);
 
   return {
@@ -167,17 +173,21 @@ function parseAttSearchResults(html: string): JobSeed[] {
   return results;
 }
 
-function enrichJob(job: JobSeed): DiscoveredJob {
+async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
   const matchScore = scoreJob(job);
+  const validation = await validateJob(job);
 
   return {
     ...job,
     matchScore,
-    validationStatus: job.source.includes("Live") ? "LIVE_SOURCE" : "URL_FOUND",
+    validationStatus: validation.status,
+    validationDetails: validation.details,
+    validationCheckedAt: validation.checkedAt,
     notes: [
       `Discovered from ${job.source}.`,
       `Matches Dallas-area preference: ${job.location}.`,
       `Role keywords: ${job.keywords.slice(0, 6).join(", ")}.`,
+      `Validation: ${validation.details}.`,
       matchScore >= 90
         ? "Strong candidate for PR review."
         : "Review seniority and requirements before creating a PR.",
@@ -185,10 +195,71 @@ function enrichJob(job: JobSeed): DiscoveredJob {
   };
 }
 
-function fetchText(url: string) {
-  return new Promise<string>((resolve, reject) => {
+async function validateJob(job: JobSeed) {
+  const checkedAt = new Date().toISOString();
+
+  try {
+    const page = await fetchPage(job.jobUrl);
+    const normalizedBody = normalizeForValidation(page.body);
+    const roleTokens = getImportantTokens(job.role);
+    const companyTokens = getImportantTokens(job.company);
+    const matchedRoleTokens = roleTokens.filter((token) => normalizedBody.includes(token));
+    const matchedCompanyTokens = companyTokens.filter((token) => normalizedBody.includes(token));
+
+    if (page.statusCode === 404 || page.statusCode === 410 || hasInactiveJobLanguage(normalizedBody)) {
+      return {
+        checkedAt,
+        details: `URL returned inactive signal (${page.statusCode}) or closed-job language`,
+        status: "INVALID_URL",
+      };
+    }
+
+    if (page.statusCode >= 400) {
+      return {
+        checkedAt,
+        details: `URL returned HTTP ${page.statusCode}`,
+        status: "INVALID_URL",
+      };
+    }
+
+    if (matchedRoleTokens.length >= Math.min(2, roleTokens.length) || matchedCompanyTokens.length > 0) {
+      return {
+        checkedAt,
+        details: `Verified page content with HTTP ${page.statusCode}`,
+        status: job.source.includes("Live") ? "LIVE_VERIFIED" : "URL_VERIFIED",
+      };
+    }
+
+    return {
+      checkedAt,
+      details: `URL loaded with HTTP ${page.statusCode}, but the title was not found on the page`,
+      status: "POSSIBLY_STALE",
+    };
+  } catch (error) {
+    return {
+      checkedAt,
+      details: error instanceof Error ? `Validation failed: ${error.message}` : "Validation failed",
+      status: "VALIDATION_FAILED",
+    };
+  }
+}
+
+async function fetchText(url: string) {
+  const page = await fetchPage(url);
+
+  if (page.statusCode >= 400) {
+    throw new Error(`Request failed with status ${page.statusCode}`);
+  }
+
+  return page.body;
+}
+
+function fetchPage(url: string, redirectsRemaining = 3): Promise<{ body: string; statusCode: number }> {
+  return new Promise((resolve, reject) => {
+    const parsedUrl = new URL(url);
+    const get = parsedUrl.protocol === "http:" ? httpGet : httpsGet;
     const request = get(
-      url,
+      parsedUrl,
       {
         headers: {
           "User-Agent": "ApplicationCopilot/0.1 (+local job discovery)",
@@ -196,9 +267,12 @@ function fetchText(url: string) {
         maxHeaderSize: 128 * 1024,
       },
       (response) => {
-        if (response.statusCode && response.statusCode >= 400) {
-          reject(new Error(`Request failed with status ${response.statusCode}`));
+        const statusCode = response.statusCode ?? 0;
+        const location = response.headers.location;
+
+        if (statusCode >= 300 && statusCode < 400 && location && redirectsRemaining > 0) {
           response.resume();
+          resolve(fetchPage(new URL(location, parsedUrl).toString(), redirectsRemaining - 1));
           return;
         }
 
@@ -207,7 +281,7 @@ function fetchText(url: string) {
         response.on("data", (chunk) => {
           body += chunk;
         });
-        response.on("end", () => resolve(body));
+        response.on("end", () => resolve({ body, statusCode }));
       },
     );
 
@@ -216,6 +290,39 @@ function fetchText(url: string) {
     });
     request.on("error", reject);
   });
+}
+
+function normalizeForValidation(value: string) {
+  return decodeHtml(value)
+    .toLowerCase()
+    .replace(/<script[\s\S]*?<\/script>/g, " ")
+    .replace(/<style[\s\S]*?<\/style>/g, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/[^a-z0-9+#.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function getImportantTokens(value: string) {
+  return normalizeForValidation(value)
+    .split(" ")
+    .filter((token) => token.length >= 4)
+    .filter((token) => !["lead", "vice", "president", "principal"].includes(token));
+}
+
+function hasInactiveJobLanguage(normalizedBody: string) {
+  const inactivePhrases = [
+    "job is no longer available",
+    "position is no longer available",
+    "posting is no longer available",
+    "job posting has expired",
+    "this job has expired",
+    "no longer accepting applications",
+    "page not found",
+    "not found",
+  ];
+
+  return inactivePhrases.some((phrase) => normalizedBody.includes(phrase));
 }
 
 function mergeJobs(jobs: JobSeed[]) {

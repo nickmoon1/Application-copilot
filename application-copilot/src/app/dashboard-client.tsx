@@ -159,6 +159,7 @@ function formatDate(value: string) {
 
 type DashboardClientProps = {
   initialApplications: SavedApplication[];
+  initialArchivedDiscoveredJobs: DiscoveredJob[];
   initialDiscoveredJobs: DiscoveredJob[];
   initialDiscoveryAt: string | null;
   initialSelectedApplicationId: string | null;
@@ -166,6 +167,7 @@ type DashboardClientProps = {
 
 export default function DashboardClient({
   initialApplications,
+  initialArchivedDiscoveredJobs,
   initialDiscoveredJobs,
   initialDiscoveryAt,
   initialSelectedApplicationId,
@@ -192,8 +194,9 @@ export default function DashboardClient({
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [createPrError, setCreatePrError] = useState<string | null>(null);
-  const discoveredJobs = initialDiscoveredJobs;
   const lastDiscoveryAt = initialDiscoveryAt;
+  const discoveredJobs = initialDiscoveredJobs;
+  const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
   const activeApplications = useMemo(
     () => savedApplications.filter((application) => !isTerminalInactiveStatus(application.status)),
     [savedApplications],
@@ -534,8 +537,8 @@ export default function DashboardClient({
               <h2>Found Jobs</h2>
             </div>
             <span className="count-label">
-              {discoveredJobs.length > 0
-                  ? `${discoveredJobs.length} candidates`
+              {initialDiscoveredJobs.length + initialArchivedDiscoveredJobs.length > 0
+                  ? `${discoveredJobs.length} active / ${archivedDiscoveredJobs.length} invalid`
                   : "Not run"}
             </span>
           </div>
@@ -554,6 +557,7 @@ export default function DashboardClient({
                     </div>
                   </div>
                   <p>{candidate.summary}</p>
+                  <p className="validation-note">{candidate.validationDetails}</p>
                   <div className="tag-row">
                     <span className="pill ready">{candidate.matchScore}% match</span>
                     <span className="pill">{candidate.validationStatus}</span>
@@ -577,14 +581,70 @@ export default function DashboardClient({
                         Create PR
                       </button>
                     </form>
+                    <form action="/jobs/discovered/invalid" className="inline-form" method="post">
+                      <input name="jobId" type="hidden" value={candidate.id} />
+                      <button
+                        className="secondary"
+                        title="Move this discovered job to the invalid found jobs folder"
+                        type="submit"
+                      >
+                        Invalid
+                      </button>
+                    </form>
                   </div>
                 </article>
               ))}
             </div>
           ) : (
-            <p className="empty-state">
-              Click Find Jobs to search configured Dallas-area sources and stage strong matches for review.
-            </p>
+            <div className="empty-state discovery-empty">
+              {lastDiscoveryAt ? (
+                <>
+                  <strong>No active new jobs passed validation.</strong>
+                  <span>
+                    Already tracked roles are hidden from discovery, and closed or unreachable roles are moved to the invalid folder below.
+                  </span>
+                </>
+              ) : (
+                <span>Click Find Jobs to search configured Dallas-area sources and stage strong matches for review.</span>
+              )}
+            </div>
+          )}
+
+          {archivedDiscoveredJobs.length > 0 && (
+            <details className="discovery-archive" open={discoveredJobs.length === 0}>
+              <summary>
+                <span>Invalid Found Jobs</span>
+                <strong>{archivedDiscoveredJobs.length}</strong>
+              </summary>
+              <div className="discovery-list archived-discovery-list">
+                {archivedDiscoveredJobs.map((candidate) => (
+                  <article className="discovery-card archived-row" key={candidate.id}>
+                    <div>
+                      <p className="eyebrow">{candidate.company}</p>
+                      <h3>{candidate.role}</h3>
+                      <div className="job-meta">
+                        <span>{candidate.location}</span>
+                        <span>{candidate.source}</span>
+                        <span>{candidate.validationStatus}</span>
+                      </div>
+                    </div>
+                    <p>{candidate.summary}</p>
+                    <p className="validation-note">{candidate.validationDetails}</p>
+                    <div className="row-actions">
+                      <a className="ghost link-button" href={candidate.jobUrl} rel="noreferrer" target="_blank">
+                        Open Job
+                      </a>
+                      <form action="/jobs/discovered/restore" className="inline-form" method="post">
+                        <input name="jobId" type="hidden" value={candidate.id} />
+                        <button className="secondary" type="submit">
+                          Restore
+                        </button>
+                      </form>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </details>
           )}
 
           {lastDiscoveryAt && (

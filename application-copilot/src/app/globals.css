@@ -328,10 +328,44 @@ h3 {
   line-height: 1.45;
 }
 
+.validation-note {
+  padding: 10px 12px;
+  border: 1px solid #d9e4ef;
+  border-radius: 8px;
+  background: #f7fbff;
+  color: #41546b;
+  font-size: 13px;
+}
+
 .sync-note {
   margin-top: 12px;
   color: var(--muted);
   font-size: 13px;
+}
+
+.discovery-archive {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 12px;
+}
+
+.discovery-archive summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  font-weight: 800;
+}
+
+.discovery-archive summary strong {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.archived-discovery-list {
+  margin-top: 10px;
 }
 
 .applications-panel {
@@ -471,6 +505,23 @@ h3 {
 .empty-state {
   margin-top: 14px;
   color: var(--muted);
+}
+
+.discovery-empty {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border: 1px solid #ead2b9;
+  border-radius: 8px;
+  background: #fff7ed;
+}
+
+.discovery-empty strong {
+  color: var(--ink);
+}
+
+.discovery-empty span {
+  line-height: 1.45;
 }
 
 .detail-meta {
