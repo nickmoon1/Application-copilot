@@ -274,7 +274,7 @@ export default function DashboardClient({
     setIsLoadingApplications(true);
 
     try {
-      const response = await fetch("/api/applications");
+      const response = await fetch("/api/applications?sync=1");
       const data = await response.json();
 
       if (!response.ok) {

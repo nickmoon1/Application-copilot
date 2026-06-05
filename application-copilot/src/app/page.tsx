@@ -1,4 +1,5 @@
 import DashboardClient, { type SavedApplication } from "./dashboard-client";
+import { syncApplicationStatuses } from "@/lib/application-status-sync";
 import { prisma } from "@/lib/db";
 import { discoverJobs } from "@/lib/job-discovery";
 
@@ -13,6 +14,7 @@ type PageProps = {
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
+  await syncApplicationStatuses();
   const applications = await prisma.application.findMany({
     orderBy: {
       createdAt: "desc",
