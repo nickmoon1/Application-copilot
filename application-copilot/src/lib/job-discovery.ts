@@ -36,6 +36,7 @@ export const targetRoles = [
 export const targetLocations = ["dallas", "irving", "plano", "richardson", "arlington"];
 
 const attDataAnalyticsUrl = "https://www.att.jobs/category/data-and-analytics-jobs/117/61758/1";
+const citiCareersUrl = "https://jobs.citi.com/search-jobs/data/287/1";
 
 const fallbackJobs: JobSeed[] = [
   {
@@ -50,29 +51,32 @@ const fallbackJobs: JobSeed[] = [
       "Principal data analyst role centered on analytics, business intelligence, data management, well-managed data solutions, and business problem solving.",
     keywords: ["data analyst", "business intelligence", "data management", "analytics", "sql", "dashboarding", "stakeholders"],
   },
+];
+
+const citiSeedJobs: JobSeed[] = [
   {
-    id: "citi-data-analytics-lead-analyst-irving",
+    id: "citi-data-solutions-engineer-91594717280",
     company: "Citi",
-    role: "Data Analytics Lead Analyst - Vice President",
+    role: "Data Solutions Engineer",
     location: "Irving, TX",
-    source: "Citi Careers",
-    jobUrl: "https://jobs.citi.com/job/irving/data-analytics-lead-analyst-vice-president/287/94454902656",
-    posted: "2026-04-27",
+    source: "Citi Careers - Seed",
+    jobUrl: "https://jobs.citi.com/job/irving/data-solutions-engineer/287/91594717280",
+    posted: "2026-05-20",
     summary:
-      "Senior analytics and governance role focused on data quality, data lineage, compliance domains, enterprise reporting, and strategic data controls.",
-    keywords: ["data analytics", "data governance", "data quality", "data lineage", "reporting", "risk", "stakeholders"],
+      "Citi data engineering role in Irving focused on data solutions, analytics platforms, engineering delivery, and technical data problem solving.",
+    keywords: ["data engineer", "data solutions", "analytics", "sql", "data platforms", "stakeholders"],
   },
   {
-    id: "citi-it-business-lead-analyst-irving",
+    id: "citi-data-analytics-lead-analyst-94492539808",
     company: "Citi",
-    role: "IT Business Lead Analyst",
+    role: "Data Analytics Lead Analyst",
     location: "Irving, TX",
-    source: "Citi Careers",
-    jobUrl: "https://jobs.citi.com/job/irving/it-business-lead-analyst/287/95421950560",
-    posted: "2026-05-22",
+    source: "Citi Careers - Seed",
+    jobUrl: "https://jobs.citi.com/job/irving/data-analytics-lead-analyst/287/94492539808",
+    posted: "2026-05-19",
     summary:
-      "Hybrid business analyst role involving SQL, data profiling, requirements analysis, data mapping, data dictionaries, BI systems, and technology delivery.",
-    keywords: ["business analyst", "sql", "data profiling", "requirements", "data mapping", "business intelligence", "hive"],
+      "Citi data analytics role in Irving focused on analytics delivery, data quality, reporting, governance, and stakeholder-facing data controls.",
+    keywords: ["data analytics", "data analyst", "data governance", "data quality", "reporting", "risk", "stakeholders"],
   },
 ];
 
@@ -105,8 +109,10 @@ const attFallbackJobs: JobSeed[] = [
 
 export async function discoverJobs() {
   const liveAttJobs = await discoverAttJobs();
+  const citiJobs = discoverCitiJobs();
   const seeds = mergeJobs([
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
+    ...citiJobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
@@ -128,6 +134,12 @@ export async function discoverJobs() {
         url: attDataAnalyticsUrl,
         mode: liveAttJobs.length > 0 ? "live" : "fallback",
         found: liveAttJobs.length,
+      },
+      {
+        name: "Citi Careers",
+        url: citiCareersUrl,
+        mode: "seeded",
+        found: citiJobs.length,
       },
     ],
   };
@@ -171,6 +183,10 @@ function parseAttSearchResults(html: string): JobSeed[] {
   }
 
   return results;
+}
+
+function discoverCitiJobs() {
+  return citiSeedJobs;
 }
 
 async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
