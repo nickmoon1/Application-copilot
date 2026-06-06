@@ -16,14 +16,126 @@
     "Use real examples from analytics, data engineering, teaching, or stakeholder work.",
     "Connect technical work to business decisions or learner outcomes.",
     "Stay honest about experience level and avoid overstating ownership.",
-    "Prefer clear language over buzzwords."
+    "Prefer clear language over buzzwords.",
+    "For employer forms, use concise resume-style bullets rather than long narrative paragraphs.",
+    "When describing experience, lead with the business or operational context, then tools, then outcome."
   ],
+  "experienceAnswerPatterns": [
+    {
+      "context": "Teaching, consulting, and education technology",
+      "preferredWording": [
+        "Supported analytics, chatbot development, and technical education initiatives for students and faculty.",
+        "Mentored students on applied analytics, reporting, and business technology projects.",
+        "Delivered instruction in Python programming, web development, and practical problem-solving methodologies.",
+        "Assisted with project coordination, stakeholder communication, and educational technology implementation."
+      ]
+    },
+    {
+      "context": "Data science and analytics training",
+      "preferredWording": [
+        "Built end-to-end analytical workflows using Python, SQL, Excel, and visualization tools to analyze operational and business datasets.",
+        "Conducted exploratory data analysis and trend identification to support data-driven recommendations and strategic insights.",
+        "Developed dashboards and KPI reporting tools in Tableau and Power BI for non-technical stakeholders.",
+        "Performed forecasting and predictive analytics projects involving customer behavior, operational performance, and financial indicators.",
+        "Collaborated on business-focused AI and analytics initiatives while managing multiple deliverables and deadlines."
+      ]
+    },
+    {
+      "context": "Field engineering and data systems",
+      "preferredWording": [
+        "Supported transportation systems operations by maintaining data pipelines and monitoring real-time system performance across 100+ sensor inputs.",
+        "Analyzed operational data and resolved system issues using SQL, Python, and Linux-based tools.",
+        "Assisted cross-functional technical teams in identifying process improvements and increasing system reliability.",
+        "Conducted data validation, troubleshooting, and reporting to support operational continuity and decision-making.",
+        "Coordinated issue resolution activities while ensuring timely completion of assigned operational projects."
+      ]
+    },
+    {
+      "context": "Research and data analysis",
+      "preferredWording": [
+        "Analyzed educational and research datasets using Python, SQL, Excel, and statistical methods to support university research initiatives.",
+        "Improved data processing and reporting efficiency by 30% through structured data cleaning and validation procedures.",
+        "Conducted trend analysis, quality assurance checks, and reporting to support strategic research objectives.",
+        "Prepared presentations and analytical summaries for faculty and research stakeholders.",
+        "Collaborated with interdisciplinary teams to support data-driven project initiatives and organizational goals."
+      ]
+    }
+  ],
+  "standardApplicationResponses": {
+    "howDidYouHearAboutUs": "Use the employer career site when applying directly through the company website.",
+    "legallyAuthorizedToWork": "Yes",
+    "canProvideWorkAuthorizationVerification": "Yes",
+    "requiresSponsorshipNowOrFuture": "No",
+    "previouslyEmployedByEmployer": "No unless the employer-specific answer changes.",
+    "seniorManagementRelativeOrCoveredRelationship": "No unless the employer-specific answer changes.",
+    "recentKpmgEmployment": "No unless the employer-specific answer changes.",
+    "seniorGovernmentOfficialRelationship": "No unless the employer-specific answer changes.",
+    "seniorCommercialPersonReferral": "No unless the employer-specific answer changes.",
+    "atLeast18": "Yes",
+    "usArmedForcesService": "No unless the answer changes.",
+    "termsAndConditions": "Review the employer statement, then answer yes only after reading and consenting."
+  },
+  "formFillingRules": [
+    "Treat compliance, work authorization, sponsorship, relationship, veteran, disability, demographic, and consent questions as user-confirmed only.",
+    "Do not infer or auto-change protected-class, disability, veteran, or demographic responses.",
+    "Do not store address, phone, government IDs, protected demographic responses, disability status, or other sensitive one-off form fields in generated packet files.",
+    "For standard yes/no questions, preserve the exact concise answer unless the user updates the baseline.",
+    "For experience descriptions, reuse the user's bullet structure and practical wording."
+  ],
+  "resumeFormatProfile": {
+    "source": "Resume_citi.docx provided 2026-06-06",
+    "layout": [
+      "Single-column resume layout.",
+      "Compact Calibri-style formatting around 10 pt.",
+      "Left-aligned header and section content.",
+      "Bold uppercase section headers.",
+      "No decorative cards, icons, columns, ratings, or graphics.",
+      "Use concise section spacing rather than large visual gaps."
+    ],
+    "sectionOrder": [
+      "Name and contact links",
+      "Target headline",
+      "Professional summary",
+      "Core competencies",
+      "Professional experience",
+      "Education",
+      "Technical skills",
+      "Certifications",
+      "Additional information"
+    ],
+    "headlinePattern": "Use a compact target headline such as BUSINESS ANALYTICS | DATA ENGINEERING.",
+    "summaryPattern": "Use a short first-person professional summary that states focus area, core tools, and practical decision-making value.",
+    "coreCompetenciesPattern": "Use short standalone skill terms. Prioritize job-matched skills first.",
+    "experiencePattern": [
+      "Company — City, ST",
+      "Role Title | Dates",
+      "Four to five direct accomplishment/responsibility bullets per role.",
+      "Start bullets with action verbs such as Supported, Built, Conducted, Developed, Performed, Collaborated, Analyzed, Improved, Prepared, Coordinated.",
+      "Mention tools inside the business context rather than as isolated keyword stuffing.",
+      "Prefer operational, stakeholder, reporting, dashboard, validation, forecasting, and data-quality framing for analyst roles."
+    ],
+    "skillsPattern": [
+      "Analytics & Visualization: tools",
+      "Programming & Databases: tools",
+      "Data Analysis: methods",
+      "Business Tools: tools and communication outputs"
+    ],
+    "tailoringRules": [
+      "Keep the resume plain, scannable, and ATS-friendly.",
+      "Reorder and emphasize existing evidence rather than adding unsupported claims.",
+      "Use the user's bullet language as the default voice for tailored resumes.",
+      "For each role, prioritize the most relevant four to five bullets instead of overloading the resume.",
+      "For banking, analytics, and data roles, emphasize SQL, Python, dashboards, data validation, KPI reporting, stakeholder communication, and operational decision support."
+    ]
+  },
   "avoid": [
     "Invented years of experience",
     "Unsupported tool claims",
     "Generic AI-sounding enthusiasm",
     "Overly long cover-letter style answers",
-    "Claims that go beyond the resume/profile evidence"
+    "Claims that go beyond the resume/profile evidence",
+    "Saving protected demographic or disability disclosures in application packet files",
+    "Treating voluntary disclosure answers as reusable writing examples"
   ],
-  "calibrationStatus": "Starter profile. Improve this by saving examples from real application answers Nickmoon writes manually."
+  "calibrationStatus": "Calibrated from Citi employer form answers and Resume_citi.docx provided on 2026-06-06. Sensitive personal, demographic, disability, and address fields were intentionally excluded."
 }

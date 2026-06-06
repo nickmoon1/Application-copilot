@@ -29,6 +29,9 @@ export function generateApplicationPacket(application: ApplicationDraft) {
     projectExamples: strengths.projectExamples,
     collaboration:
       "I have worked with technical and non-technical stakeholders through research, dashboarding, teaching, and field engineering environments.",
+    standardApplicationResponses: answerStyle.standardApplicationResponses,
+    formFillingRules: answerStyle.formFillingRules,
+    resumeFormatProfile: answerStyle.resumeFormatProfile,
     notesForReview: application.notes || "No extra notes provided.",
     questionsToVerify,
     profileEvidenceUsed: strengths.evidenceUsed,
@@ -236,6 +239,18 @@ ${strengths.projectExamples.map((item) => `- ${item}`).join("\n")}
 - Do not imply production ownership when the evidence is project, trainee, teaching, or support experience.
 - Prefer stronger ordering and clearer phrasing over new claims.
 - Convert this Markdown into a final PDF only after human review.
+
+## Resume Format Calibration
+
+${answerStyle.resumeFormatProfile.layout.map((item) => `- ${item}`).join("\n")}
+
+### Preferred Section Order
+
+${answerStyle.resumeFormatProfile.sectionOrder.map((item) => `- ${item}`).join("\n")}
+
+### Experience Formatting
+
+${answerStyle.resumeFormatProfile.experiencePattern.map((item) => `- ${item}`).join("\n")}
 `;
 }
 
