@@ -44,6 +44,40 @@ const citiSearchUrls = [
   "https://jobs.citi.com/search-jobs/data%20analyst/287/1",
   "https://jobs.citi.com/search-jobs/business%20analyst/287/1",
 ];
+const nttDataAnalyticsUrl = "https://careers.services.global.ntt/global/en/c/data-and-analytics-jobs";
+const nttSearchUrls = [
+  nttDataAnalyticsUrl,
+  "https://careers.services.global.ntt/global/en/search-results?keywords=data",
+  "https://careers.services.global.ntt/global/en/search-results?keywords=data%20analyst",
+  "https://careers.services.global.ntt/global/en/search-results?keywords=data%20engineer",
+  "https://careers.services.global.ntt/global/en/search-results?keywords=business%20analyst",
+];
+
+const nttPriorityJobs: JobSeed[] = [
+  {
+    id: "ntt-senior-data-scientist-consultant-374304",
+    company: "NTT Data",
+    role: "Senior Data Scientist Consultant",
+    location: "Plano, TX",
+    source: "NTT Data Careers - Priority",
+    jobUrl:
+      "https://careers.services.global.ntt/global/en/job/374304/Senior-Data-Scientist-Consultant-Python-SQL-TensorFlow-PyTorch-Scikit-Learn-FTE-Onsite",
+    posted: "2026-05-28",
+    summary:
+      "Plano-based NTT Data data science consultant role focused on Python, SQL, TensorFlow, PyTorch, scikit-learn, statistical modeling, and financial services analytics.",
+    keywords: [
+      "data scientist",
+      "python",
+      "sql",
+      "machine learning",
+      "tensorflow",
+      "pytorch",
+      "scikit-learn",
+      "statistical modeling",
+      "financial analytics",
+    ],
+  },
+];
 
 const fallbackJobs: JobSeed[] = [
   {
@@ -118,9 +152,11 @@ export async function discoverJobs() {
   const liveAttJobs = await discoverAttJobs();
   const citiDiscovery = await discoverCitiJobs();
   const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
+  const nttDiscovery = await discoverNttJobs();
   const seeds = mergeJobs([
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
     ...citiJobs,
+    ...nttDiscovery.jobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
@@ -148,6 +184,12 @@ export async function discoverJobs() {
         url: citiCareersUrl,
         mode: citiDiscovery.mode,
         found: citiJobs.length,
+      },
+      {
+        name: "NTT Data Careers",
+        url: nttDataAnalyticsUrl,
+        mode: nttDiscovery.mode,
+        found: nttDiscovery.jobs.length,
       },
     ],
   };
@@ -266,6 +308,99 @@ function getCitiConnectorMode(parsedCount: number, acceptedCount: number) {
   }
 
   return "seeded";
+}
+
+async function discoverNttJobs() {
+  const pages = await Promise.all(
+    nttSearchUrls.flatMap((url) =>
+      [0, 10, 20].map(async (from) => {
+        try {
+          return await fetchText(withPagination(url, from));
+        } catch {
+          return "";
+        }
+      }),
+    ),
+  );
+  const parsedJobs = mergeJobs([...nttPriorityJobs, ...pages.flatMap(parseNttSearchResults)]);
+  const jobs = parsedJobs
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .slice(0, 12);
+
+  return {
+    jobs,
+    mode: getLiveConnectorMode(parsedJobs.length, jobs.length),
+  };
+}
+
+function parseNttSearchResults(html: string): JobSeed[] {
+  const payload = extractJsonObjectAfterKey(html, "\"eagerLoadRefineSearch\":");
+  if (!payload) return [];
+
+  try {
+    const parsed = JSON.parse(payload) as {
+      data?: {
+        jobs?: NttRawJob[];
+      };
+    };
+    const jobs = parsed.data?.jobs ?? [];
+
+    return jobs.map(mapNttJob).filter((job): job is JobSeed => Boolean(job));
+  } catch {
+    return [];
+  }
+}
+
+type NttRawJob = Record<string, unknown>;
+
+function mapNttJob(job: NttRawJob): JobSeed | null {
+  const role = getString(job.title);
+  const reqId = getString(job.reqId) || getString(job.jobId);
+  const location = normalizeNttLocation(
+    getString(job.location) ||
+      getString(job.cityStateCountry) ||
+      getStringArray(job.multi_location)[0] ||
+      [getString(job.city), getString(job.country)].filter(Boolean).join(", "),
+  );
+
+  if (!role || !reqId || !location) return null;
+
+  const description = getString(job.descriptionTeaser) || getNestedString(job, ["ml_job_parser", "descriptionTeaser"]);
+  const workArrangement = getString(job.remoteType) || getString(job.workLocation);
+  const skills = getStringArray(job.ml_skills);
+  const category = getString(job.category);
+  const jobUrl = `https://careers.services.global.ntt/global/en/job/${encodeURIComponent(reqId)}/${slugifyTitle(role)}`;
+
+  return {
+    id: `ntt-${slugify(role)}-${slugify(reqId)}`,
+    company: "NTT Data",
+    role,
+    location,
+    source: "NTT Data Careers - Live",
+    jobUrl,
+    posted: normalizeDate(getString(job.postedDate) || getString(job.dateCreated)),
+    summary: [
+      `Live NTT Data posting for ${role} in ${location}.`,
+      category ? `Category: ${category}.` : "",
+      workArrangement ? `Work arrangement listed as ${workArrangement}.` : "",
+      description,
+    ].filter(Boolean).join(" "),
+    keywords: Array.from(new Set([...inferKeywords(role), ...skills.slice(0, 8).map((skill) => skill.toLowerCase())])),
+    workArrangement,
+  };
+}
+
+function getLiveConnectorMode(parsedCount: number, acceptedCount: number) {
+  if (acceptedCount > 0) {
+    return "live";
+  }
+
+  if (parsedCount > 0) {
+    return "live_no_matches";
+  }
+
+  return "unavailable";
 }
 
 async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
@@ -427,6 +562,64 @@ function fetchPage(url: string, redirectsRemaining = 3): Promise<{ body: string;
   });
 }
 
+function extractJsonObjectAfterKey(value: string, key: string) {
+  const keyIndex = value.indexOf(key);
+  if (keyIndex < 0) return null;
+
+  const start = value.indexOf("{", keyIndex + key.length);
+  if (start < 0) return null;
+
+  let depth = 0;
+  let escaped = false;
+  let inString = false;
+
+  for (let index = start; index < value.length; index += 1) {
+    const character = value[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (character === "\\") {
+      escaped = true;
+      continue;
+    }
+
+    if (character === "\"") {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) continue;
+
+    if (character === "{") {
+      depth += 1;
+    }
+
+    if (character === "}") {
+      depth -= 1;
+
+      if (depth === 0) {
+        return value.slice(start, index + 1);
+      }
+    }
+  }
+
+  return null;
+}
+
+function withPagination(url: string, from: number) {
+  const paginatedUrl = new URL(url);
+
+  if (from > 0) {
+    paginatedUrl.searchParams.set("from", String(from));
+    paginatedUrl.searchParams.set("s", "1");
+  }
+
+  return paginatedUrl.toString();
+}
+
 function normalizeForValidation(value: string) {
   return decodeHtml(value)
     .toLowerCase()
@@ -579,7 +772,6 @@ function isOverSeniorForCurrentProfile(role: string) {
     "senior vice president",
     "assistant vice president",
     "lead ",
-    "senior ",
     "manager",
     "director",
   ];
@@ -644,9 +836,53 @@ function normalizeCitiLocation(value: string) {
     .trim();
 }
 
+function normalizeNttLocation(value: string) {
+  return value
+    .replace(/,\s*Texas,\s*United States(?: of America)?/i, ", TX")
+    .replace(/,\s*United States of America/i, ", United States")
+    .replace(/,\s*United States/i, ", United States")
+    .trim();
+}
+
+function normalizeDate(value: string) {
+  if (!value) return new Date().toISOString().slice(0, 10);
+
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) {
+    return new Date().toISOString().slice(0, 10);
+  }
+
+  return parsed.toISOString().slice(0, 10);
+}
+
+function getString(value: unknown) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function getStringArray(value: unknown) {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === "string").map((item) => item.trim()) : [];
+}
+
+function getNestedString(value: Record<string, unknown>, path: string[]) {
+  let current: unknown = value;
+
+  for (const key of path) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) return "";
+    current = (current as Record<string, unknown>)[key];
+  }
+
+  return getString(current);
+}
+
 function slugify(value: string) {
   return value
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function slugifyTitle(value: string) {
+  return value
+    .replace(/[^a-zA-Z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "");
 }
