@@ -1,5 +1,6 @@
 import profile from "@/data/profile.json";
 import answerStyle from "@/data/answer-style.json";
+import { generateResumeDocx } from "@/lib/resume-docx";
 
 type ApplicationDraft = {
   company: string;
@@ -43,6 +44,7 @@ export function generateApplicationPacket(application: ApplicationDraft) {
     checklist: buildChecklist(application, questionsToVerify),
     reviewNotes: buildReviewNotes(application, strengths, questionsToVerify),
     tailoredResume: resumeTailoring,
+    tailoredResumeDocx: generateResumeDocx(resumeTailoring),
     answerStyle: JSON.stringify(answerStyle, null, 2),
   };
 }
@@ -203,42 +205,63 @@ ${application.notes || "No extra notes provided."}
 function buildResumeTailoring(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
   const matchedSkills = getMatchedSkills(application);
   const prioritizedExperience = getPrioritizedExperience(application);
+  const headline = getResumeHeadline(application);
+  const summary = getResumeSummary(application, strengths);
+  const skillGroups = getResumeSkillGroups(matchedSkills);
 
-  return `# Tailored Resume Draft
+  return `# Tailored Resume Draft - ${application.company} ${application.role}
 
-Use this as a review draft for ${application.company} - ${application.role}. It should only reorder and emphasize truthful experience already present in the profile/resume.
+This is a resume-shaped draft for review. It follows the calibrated Citi resume structure and should only reorder or emphasize truthful experience already present in the profile/resume.
 
-## Target Resume Summary
+## ${profile.name.toUpperCase()}
 
-${profile.name} is a data professional focused on analytics, data science, data engineering, and stakeholder-facing problem solving. Background includes ${strengths.primaryEvidence} Experience spans Python, SQL, machine learning, dashboards, data validation, teaching, and translating technical work into practical decisions.
+${profile.location} | ${profile.phone} | ${profile.email}
+${profile.links.linkedin} | ${profile.links.portfolio}
 
-## Skills To Emphasize
+## ${headline}
+
+${summary}
+
+## CORE COMPETENCIES
 
 ${matchedSkills.map((skill) => `- ${skill}`).join("\n")}
 
-## Experience Order For This Role
+## PROFESSIONAL EXPERIENCE
 
-${prioritizedExperience
-  .map(
-    (item) =>
-      `### ${item.role} - ${item.organization}\n${item.focus.map((focus) => `- ${focus}`).join("\n")}`,
-  )
-  .join("\n\n")}
+${prioritizedExperience.map((item) => buildResumeExperienceBlock(item, application)).join("\n\n")}
 
-## Resume Bullet Options
+## EDUCATION
 
-${strengths.evidenceUsed.map((item) => `- ${item}`).join("\n")}
+${profile.education.map((item) => `- ${item}`).join("\n")}
 
-## Project Emphasis
+## TECHNICAL SKILLS
 
-${strengths.projectExamples.map((item) => `- ${item}`).join("\n")}
+${skillGroups.map((item) => `- ${item}`).join("\n")}
+
+## CERTIFICATIONS
+
+${profile.certifications.map((item) => `- ${item}`).join("\n")}
+
+## ADDITIONAL INFORMATION
+
+- Portfolio: ${profile.links.portfolio}
+- GitHub: ${profile.links.github}
+
+## REVIEW NOTES
+
+- Target company: ${application.company}
+- Target role: ${application.role}
+- Source: ${application.source}
+- Job URL: ${application.jobUrl || "Not provided"}
+- Match score: ${application.matchScore}%
+- Evidence emphasized: ${strengths.evidenceUsed.join(" ")}
 
 ## Guardrails
 
 - Do not add tools, certifications, employers, degrees, or years of experience unless they already appear in the profile.
 - Do not imply production ownership when the evidence is project, trainee, teaching, or support experience.
 - Prefer stronger ordering and clearer phrasing over new claims.
-- Convert this Markdown into a final PDF only after human review.
+- Convert this Markdown into a final DOCX/PDF only after human review.
 
 ## Resume Format Calibration
 
@@ -252,6 +275,150 @@ ${answerStyle.resumeFormatProfile.sectionOrder.map((item) => `- ${item}`).join("
 
 ${answerStyle.resumeFormatProfile.experiencePattern.map((item) => `- ${item}`).join("\n")}
 `;
+}
+
+function getResumeHeadline(application: ApplicationDraft) {
+  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+
+  if (searchable.includes("engineer") || searchable.includes("data solutions")) {
+    return "DATA ENGINEERING | BUSINESS ANALYTICS";
+  }
+
+  if (searchable.includes("scientist") || searchable.includes("machine learning") || searchable.includes("ai")) {
+    return "DATA SCIENCE | BUSINESS ANALYTICS";
+  }
+
+  if (searchable.includes("business")) {
+    return "BUSINESS ANALYTICS | DATA ANALYSIS";
+  }
+
+  return "BUSINESS ANALYTICS | DATA ENGINEERING";
+}
+
+function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
+  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const focus = searchable.includes("engineer")
+    ? "data engineering, analytics workflows, data validation, and operational reporting"
+    : searchable.includes("scientist") || searchable.includes("ai")
+      ? "data science, predictive analytics, dashboarding, and stakeholder-facing insights"
+      : "business analytics, SQL analysis, reporting, dashboards, and stakeholder-facing problem solving";
+
+  return `I am a data professional focused on ${focus}. My background includes ${strengths.primaryEvidence} My experience spans Python, SQL, dashboards, data cleaning, data validation, forecasting, teaching, and translating technical work into practical decisions.`;
+}
+
+function buildResumeExperienceBlock(
+  item: {
+    role: string;
+    organization: string;
+    location: string;
+    focus: string[];
+  },
+  application: ApplicationDraft,
+) {
+  return [
+    `### ${item.organization} - ${item.location}`,
+    `**${item.role}**`,
+    ...getExperienceBullets(item, application).map((bullet) => `- ${bullet}`),
+  ].join("\n");
+}
+
+function getExperienceBullets(
+  item: {
+    role: string;
+    organization: string;
+    focus: string[];
+  },
+  application: ApplicationDraft,
+) {
+  const organization = item.organization.toLowerCase();
+  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+
+  if (organization.includes("data science academy")) {
+    return prioritizeBullets(
+      [
+        "Built end-to-end analytical workflows using Python, SQL, Excel, and visualization tools to analyze operational and business datasets.",
+        "Conducted exploratory data analysis and trend identification to support data-driven recommendations and strategic insights.",
+        "Developed dashboards and KPI reporting tools in Tableau and Power BI for non-technical stakeholders.",
+        "Performed forecasting and predictive analytics projects involving customer behavior, operational performance, and financial indicators.",
+        "Collaborated on business-focused AI and analytics initiatives while managing multiple deliverables and deadlines.",
+      ],
+      searchable,
+    );
+  }
+
+  if (organization.includes("thales")) {
+    return prioritizeBullets(
+      [
+        "Supported transportation systems operations by maintaining data pipelines and monitoring real-time system performance across 100+ sensor inputs.",
+        "Analyzed operational data and resolved system issues using SQL, Python, and Linux-based tools.",
+        "Assisted cross-functional technical teams in identifying process improvements and increasing system reliability.",
+        "Conducted data validation, troubleshooting, and reporting to support operational continuity and decision-making.",
+        "Coordinated issue resolution activities while ensuring timely completion of assigned operational projects.",
+      ],
+      searchable,
+    );
+  }
+
+  if (organization.includes("nebraska")) {
+    return prioritizeBullets(
+      [
+        "Analyzed educational and research datasets using Python, SQL, Excel, and statistical methods to support university research initiatives.",
+        "Improved data processing and reporting efficiency by 30% through structured data cleaning and validation procedures.",
+        "Conducted trend analysis, quality assurance checks, and reporting to support strategic research objectives.",
+        "Prepared presentations and analytical summaries for faculty and research stakeholders.",
+        "Collaborated with interdisciplinary teams to support data-driven project initiatives and organizational goals.",
+      ],
+      searchable,
+    );
+  }
+
+  if (organization.includes("benedict")) {
+    return prioritizeBullets(
+      [
+        "Supported analytics, chatbot development, and technical education initiatives for students and faculty.",
+        "Mentored students on applied analytics, reporting, and business technology projects.",
+        "Delivered instruction in Python programming, web development, and practical problem-solving methodologies.",
+        "Assisted with project coordination, stakeholder communication, and educational technology implementation.",
+      ],
+      searchable,
+    );
+  }
+
+  return item.focus.map((focus) => `Supported ${focus.toLowerCase()} initiatives in a data-focused environment.`);
+}
+
+function prioritizeBullets(bullets: string[], searchable: string) {
+  return [...bullets]
+    .sort((left, right) => scoreTextForSearch(right, searchable) - scoreTextForSearch(left, searchable))
+    .slice(0, 5);
+}
+
+function scoreTextForSearch(value: string, searchable: string) {
+  const normalized = value.toLowerCase();
+  const keywords = searchable.split(/[^a-z0-9+#.]+/).filter((keyword) => keyword.length > 2);
+
+  return keywords.reduce((score, keyword) => score + (normalized.includes(keyword) ? 1 : 0), 0);
+}
+
+function getResumeSkillGroups(matchedSkills: string[]) {
+  const prioritizedSkills = new Set(matchedSkills);
+
+  return [
+    `Analytics & Visualization: ${joinKnownSkills(["Tableau", "Matplotlib", "Dashboard Development"], prioritizedSkills)}`,
+    `Programming & Databases: ${joinKnownSkills(["Python", "SQL", "Pandas", "NumPy"], prioritizedSkills)}`,
+    `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Data Validation"], prioritizedSkills)}`,
+    "Business Tools: Microsoft Office Suite, Excel, Reporting & Presentation Development",
+  ];
+}
+
+function joinKnownSkills(skills: string[], prioritizedSkills: Set<string>) {
+  const knownSkills = new Set(Object.values(profile.skills).flat());
+  const orderedSkills = [
+    ...skills.filter((skill) => prioritizedSkills.has(skill)),
+    ...skills.filter((skill) => !prioritizedSkills.has(skill)),
+  ].filter((skill) => knownSkills.has(skill) || skill === "Excel");
+
+  return Array.from(new Set(orderedSkills)).join(", ");
 }
 
 function getMatchedSkills(application: ApplicationDraft) {

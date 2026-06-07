@@ -99,6 +99,16 @@ export async function POST(request: Request) {
       content: packet.tailoredResume,
     });
 
+    await createOrUpdateBinaryFile({
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      branch: branchName,
+      path: `${folder}/tailored-resume.docx`,
+      message: `Add tailored resume document for ${application.company}`,
+      content: packet.tailoredResumeDocx,
+    });
+
     await createOrUpdateFile({
       octokit,
       owner: config.owner,
@@ -312,6 +322,10 @@ type CreateOrUpdateFileInput = {
   content: string;
 };
 
+type CreateOrUpdateBinaryFileInput = Omit<CreateOrUpdateFileInput, "content"> & {
+  content: Buffer;
+};
+
 async function createOrUpdateFile({
   octokit,
   owner,
@@ -335,6 +349,34 @@ async function createOrUpdateFile({
     path,
     message,
     content: Buffer.from(content, "utf8").toString("base64"),
+    branch,
+    ...(existingSha ? { sha: existingSha } : {}),
+  });
+}
+
+async function createOrUpdateBinaryFile({
+  octokit,
+  owner,
+  repo,
+  branch,
+  path,
+  message,
+  content,
+}: CreateOrUpdateBinaryFileInput) {
+  const existingSha = await getExistingFileSha({
+    octokit,
+    owner,
+    repo,
+    branch,
+    path,
+  });
+
+  await octokit.rest.repos.createOrUpdateFileContents({
+    owner,
+    repo,
+    path,
+    message,
+    content: content.toString("base64"),
     branch,
     ...(existingSha ? { sha: existingSha } : {}),
   });
