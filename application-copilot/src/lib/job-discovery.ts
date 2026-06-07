@@ -11,9 +11,11 @@ type JobSeed = {
   posted: string;
   summary: string;
   keywords: string[];
+  workArrangement?: string;
 };
 
 export type DiscoveredJob = JobSeed & {
+  locationFit: string;
   matchScore: number;
   validationStatus: string;
   validationDetails: string;
@@ -33,10 +35,15 @@ export const targetRoles = [
   "big data",
 ];
 
-export const targetLocations = ["dallas", "irving", "plano", "richardson", "arlington"];
+export const targetLocations = ["dallas", "irving", "plano", "richardson", "arlington", "frisco", "fort worth"];
 
 const attDataAnalyticsUrl = "https://www.att.jobs/category/data-and-analytics-jobs/117/61758/1";
 const citiCareersUrl = "https://jobs.citi.com/search-jobs/data/287/1";
+const citiSearchUrls = [
+  "https://jobs.citi.com/search-jobs/data/287/1",
+  "https://jobs.citi.com/search-jobs/data%20analyst/287/1",
+  "https://jobs.citi.com/search-jobs/business%20analyst/287/1",
+];
 
 const fallbackJobs: JobSeed[] = [
   {
@@ -109,14 +116,15 @@ const attFallbackJobs: JobSeed[] = [
 
 export async function discoverJobs() {
   const liveAttJobs = await discoverAttJobs();
-  const citiJobs = discoverCitiJobs();
+  const citiDiscovery = await discoverCitiJobs();
+  const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
   const seeds = mergeJobs([
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
     ...citiJobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
-    .filter((job) => isTargetLocation(job.location) && isTargetRole(job.role, job.keywords))
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
     .sort((a, b) => scoreJob(b) - scoreJob(a));
   const candidates = await Promise.all(matchedSeeds.map(enrichJob));
 
@@ -138,7 +146,7 @@ export async function discoverJobs() {
       {
         name: "Citi Careers",
         url: citiCareersUrl,
-        mode: "seeded",
+        mode: citiDiscovery.mode,
         found: citiJobs.length,
       },
     ],
@@ -185,23 +193,96 @@ function parseAttSearchResults(html: string): JobSeed[] {
   return results;
 }
 
-function discoverCitiJobs() {
-  return citiSeedJobs;
+async function discoverCitiJobs() {
+  const pages = await Promise.all(
+    citiSearchUrls.map(async (url) => {
+      try {
+        return await fetchText(url);
+      } catch {
+        return "";
+      }
+    }),
+  );
+  const parsedJobs = mergeJobs(pages.flatMap(parseCitiSearchResults));
+  const jobs = parsedJobs
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .slice(0, 12);
+
+  return {
+    jobs,
+    mode: getCitiConnectorMode(parsedJobs.length, jobs.length),
+  };
+}
+
+function parseCitiSearchResults(html: string): JobSeed[] {
+  const results: JobSeed[] = [];
+  const itemPattern = /<li class="sr-job-item">([\s\S]*?)<\/li>/g;
+
+  for (const itemMatch of html.matchAll(itemPattern)) {
+    const item = itemMatch[1] ?? "";
+    const linkMatch = item.match(
+      /<a class="sr-job-item__link" href="([^"]+)" data-job-id="([^"]+)"[^>]*>\s*([\s\S]*?)\s*<\/a>/,
+    );
+    const locationMatch = item.match(/<span class="sr-job-item__facet sr-job-item__facet-icon sr-job-location">([\s\S]*?)<\/span>/);
+
+    if (!linkMatch || !locationMatch) continue;
+
+    const href = linkMatch[1];
+    const jobId = linkMatch[2];
+    const role = cleanHtmlText(linkMatch[3] ?? "");
+    const location = normalizeCitiLocation(cleanHtmlText(locationMatch[1] ?? ""));
+    const workArrangement = cleanHtmlText(item.match(/<span class="sr-job-item__facet sr-job-item__facet-icon sr-job-type">([\s\S]*?)<\/span>/)?.[1] ?? "");
+
+    if (!href || !jobId || !role || !location) continue;
+
+    results.push({
+      id: `citi-${slugify(role)}-${jobId}`,
+      company: "Citi",
+      role,
+      location,
+      source: "Citi Careers - Live",
+      jobUrl: new URL(href, "https://jobs.citi.com").toString(),
+      posted: new Date().toISOString().slice(0, 10),
+      summary: [
+        `Live Citi Careers search result for ${role} in ${location}.`,
+        workArrangement ? `Work arrangement listed as ${workArrangement}.` : "",
+      ].filter(Boolean).join(" "),
+      keywords: inferKeywords(role),
+      workArrangement,
+    });
+  }
+
+  return results;
+}
+
+function getCitiConnectorMode(parsedCount: number, acceptedCount: number) {
+  if (acceptedCount > 0) {
+    return "live";
+  }
+
+  if (parsedCount > 0) {
+    return "live_search_fallback_seeded";
+  }
+
+  return "seeded";
 }
 
 async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
+  const locationFit = getLocationFit(job);
   const matchScore = scoreJob(job);
   const validation = await validateJob(job);
 
   return {
     ...job,
+    locationFit,
     matchScore,
     validationStatus: validation.status,
     validationDetails: validation.details,
     validationCheckedAt: validation.checkedAt,
     notes: [
       `Discovered from ${job.source}.`,
-      `Matches Dallas-area preference: ${job.location}.`,
+      `Location fit: ${locationFit} (${job.location}).`,
       `Role keywords: ${job.keywords.slice(0, 6).join(", ")}.`,
       `Validation: ${validation.details}.`,
       matchScore >= 90
@@ -362,10 +443,52 @@ function isTargetLocation(location: string) {
   return targetLocations.some((targetLocation) => normalized.includes(targetLocation));
 }
 
+function isTargetLocationCandidate(job: JobSeed) {
+  return getLocationFit(job) !== "FILTERED_LOCATION";
+}
+
+function getLocationFit(job: JobSeed) {
+  if (isTargetLocation(job.location)) {
+    return "LOCAL_MATCH";
+  }
+
+  if (hasRemoteOrMultiLocationSignal(job)) {
+    return "REMOTE_OR_MULTI_LOCATION";
+  }
+
+  return "FILTERED_LOCATION";
+}
+
+function hasRemoteOrMultiLocationSignal(job: JobSeed) {
+  const searchable = `${job.location} ${job.summary} ${job.workArrangement ?? ""}`.toLowerCase();
+
+  return (
+    searchable.includes("remote") ||
+    searchable.includes("multiple locations") ||
+    searchable.includes("multiple location") ||
+    searchable.includes("virtual")
+  );
+}
+
 function isTargetRole(role: string, keywords: string[]) {
   const searchable = `${role} ${keywords.join(" ")}`.toLowerCase();
 
   return targetRoles.some((targetRole) => searchable.includes(targetRole));
+}
+
+function isOverSeniorForCurrentProfile(role: string) {
+  const normalized = role.toLowerCase();
+  const seniorSignals = [
+    "vice president",
+    "senior vice president",
+    "assistant vice president",
+    "lead ",
+    "senior ",
+    "manager",
+    "director",
+  ];
+
+  return seniorSignals.some((signal) => normalized.includes(signal));
 }
 
 function inferKeywords(role: string) {
@@ -391,6 +514,7 @@ function scoreJob(job: JobSeed) {
 
   if (job.location.toLowerCase().includes("dallas")) score += 8;
   if (job.location.toLowerCase().includes("plano") || job.location.toLowerCase().includes("irving")) score += 6;
+  if (getLocationFit(job) === "REMOTE_OR_MULTI_LOCATION") score += 5;
   if (searchable.includes("sql")) score += 4;
   if (searchable.includes("python")) score += 4;
   if (searchable.includes("business intelligence") || searchable.includes("dashboard")) score += 4;
@@ -408,6 +532,20 @@ function decodeHtml(value: string) {
     .replace(/&quot;/g, "\"")
     .replace(/&#39;/g, "'")
     .replace(/&nbsp;/g, " ");
+}
+
+function cleanHtmlText(value: string) {
+  return decodeHtml(value)
+    .replace(/<[^>]+>/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function normalizeCitiLocation(value: string) {
+  return value
+    .replace(/,\s*Texas,\s*United States/i, ", TX")
+    .replace(/,\s*United States/i, "")
+    .trim();
 }
 
 function slugify(value: string) {
