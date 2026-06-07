@@ -272,6 +272,7 @@ async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
   const locationFit = getLocationFit(job);
   const matchScore = scoreJob(job);
   const validation = await validateJob(job);
+  const jobEvidence = validation.evidence;
 
   return {
     ...job,
@@ -284,11 +285,12 @@ async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
       `Discovered from ${job.source}.`,
       `Location fit: ${locationFit} (${job.location}).`,
       `Role keywords: ${job.keywords.slice(0, 6).join(", ")}.`,
+      jobEvidence.length > 0 ? `Job evidence keywords: ${jobEvidence.join(", ")}.` : "",
       `Validation: ${validation.details}.`,
       matchScore >= 90
         ? "Strong candidate for PR review."
         : "Review seniority and requirements before creating a PR.",
-    ].join(" "),
+    ].filter(Boolean).join(" "),
   };
 }
 
@@ -298,6 +300,7 @@ async function validateJob(job: JobSeed) {
   try {
     const page = await fetchPage(job.jobUrl);
     const normalizedBody = normalizeForValidation(page.body);
+    const evidence = extractJobEvidence(normalizedBody);
     const roleTokens = getImportantTokens(job.role);
     const companyTokens = getImportantTokens(job.company);
     const matchedRoleTokens = roleTokens.filter((token) => normalizedBody.includes(token));
@@ -307,6 +310,7 @@ async function validateJob(job: JobSeed) {
       return {
         checkedAt,
         details: `URL returned inactive signal (${page.statusCode}) or closed-job language`,
+        evidence,
         status: "INVALID_URL",
       };
     }
@@ -315,6 +319,7 @@ async function validateJob(job: JobSeed) {
       return {
         checkedAt,
         details: `URL returned HTTP ${page.statusCode}`,
+        evidence,
         status: "INVALID_URL",
       };
     }
@@ -323,6 +328,7 @@ async function validateJob(job: JobSeed) {
       return {
         checkedAt,
         details: `Verified page content with HTTP ${page.statusCode}`,
+        evidence,
         status: job.source.includes("Live") ? "LIVE_VERIFIED" : "URL_VERIFIED",
       };
     }
@@ -330,15 +336,47 @@ async function validateJob(job: JobSeed) {
     return {
       checkedAt,
       details: `URL loaded with HTTP ${page.statusCode}, but the title was not found on the page`,
+      evidence,
       status: "POSSIBLY_STALE",
     };
   } catch (error) {
     return {
       checkedAt,
       details: error instanceof Error ? `Validation failed: ${error.message}` : "Validation failed",
+      evidence: [],
       status: "VALIDATION_FAILED",
     };
   }
+}
+
+function extractJobEvidence(normalizedBody: string) {
+  const evidenceTerms = [
+    "sql",
+    "python",
+    "tableau",
+    "power bi",
+    "excel",
+    "data quality",
+    "data governance",
+    "data analysis",
+    "business intelligence",
+    "dashboard",
+    "reporting",
+    "forecasting",
+    "predictive analytics",
+    "machine learning",
+    "stakeholder",
+    "data validation",
+    "etl",
+    "snowflake",
+    "databricks",
+    "risk",
+    "controls",
+    "regulatory",
+    "kpi",
+  ];
+
+  return evidenceTerms.filter((term) => normalizedBody.includes(term)).slice(0, 12);
 }
 
 async function fetchText(url: string) {
@@ -462,12 +500,70 @@ function getLocationFit(job: JobSeed) {
 function hasRemoteOrMultiLocationSignal(job: JobSeed) {
   const searchable = `${job.location} ${job.summary} ${job.workArrangement ?? ""}`.toLowerCase();
 
-  return (
-    searchable.includes("remote") ||
-    searchable.includes("multiple locations") ||
-    searchable.includes("multiple location") ||
-    searchable.includes("virtual")
-  );
+  if (hasNonUsCitiUrlSignal(job.jobUrl)) {
+    return false;
+  }
+
+  if (searchable.includes("remote") || searchable.includes("virtual")) {
+    return hasUsUrlSignal(job.jobUrl) || hasUsRemoteSignal(searchable);
+  }
+
+  if (searchable.includes("multiple locations") || searchable.includes("multiple location")) {
+    return hasUsUrlSignal(job.jobUrl) || searchable.includes("united states") || searchable.includes("usa");
+  }
+
+  return false;
+}
+
+function hasUsRemoteSignal(searchable: string) {
+  const usSignals = [
+    "united states",
+    "usa",
+    "u.s.",
+    "us remote",
+    "remote - us",
+    "remote - united states",
+    "remote, united states",
+    "remote within the united states",
+  ];
+
+  return usSignals.some((signal) => searchable.includes(signal));
+}
+
+function hasNonUsCitiUrlSignal(jobUrl: string) {
+  const normalized = jobUrl.toLowerCase();
+  const nonUsPathSignals = [
+    "/job/bengaluru/",
+    "/job/chennai/",
+    "/job/haryana/",
+    "/job/mumbai/",
+    "/job/pune/",
+    "/job/city-of-taguig/",
+    "/job/warsaw/",
+    "/job/olsztyn/",
+    "/job/dublin/",
+  ];
+
+  return nonUsPathSignals.some((signal) => normalized.includes(signal));
+}
+
+function hasUsUrlSignal(jobUrl: string) {
+  const normalized = jobUrl.toLowerCase();
+  const usPathSignals = [
+    "/job/dallas/",
+    "/job/irving/",
+    "/job/plano/",
+    "/job/richardson/",
+    "/job/arlington/",
+    "/job/frisco/",
+    "/job/fort-worth/",
+    "/job/tampa/",
+    "/job/jacksonville/",
+    "/job/new-york/",
+    "/job/jersey-city/",
+  ];
+
+  return usPathSignals.some((signal) => normalized.includes(signal));
 }
 
 function isTargetRole(role: string, keywords: string[]) {

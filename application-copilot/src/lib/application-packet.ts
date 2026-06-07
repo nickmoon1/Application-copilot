@@ -208,6 +208,7 @@ function buildResumeTailoring(application: ApplicationDraft, strengths: ReturnTy
   const headline = getResumeHeadline(application);
   const summary = getResumeSummary(application, strengths);
   const skillGroups = getResumeSkillGroups(matchedSkills);
+  const targetAlignment = getTargetRoleAlignment(matchedSkills, strengths);
 
   return `# Tailored Resume Draft - ${application.company} ${application.role}
 
@@ -222,6 +223,7 @@ ${profile.links.linkedin} | ${profile.links.portfolio}
 
 ${summary}
 
+${targetAlignment.length > 0 ? `## TARGET ROLE ALIGNMENT\n\n${targetAlignment.map((item) => `- ${item}`).join("\n")}\n` : ""}
 ## CORE COMPETENCIES
 
 ${matchedSkills.map((skill) => `- ${skill}`).join("\n")}
@@ -304,6 +306,28 @@ function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<t
       : "business analytics, SQL analysis, reporting, dashboards, and stakeholder-facing problem solving";
 
   return `I am a data professional focused on ${focus}. My background includes ${strengths.primaryEvidence} My experience spans Python, SQL, dashboards, data cleaning, data validation, forecasting, teaching, and translating technical work into practical decisions.`;
+}
+
+function getTargetRoleAlignment(matchedSkills: string[], strengths: ReturnType<typeof selectStrengths>) {
+  const skillEvidence: Record<string, string> = {
+    "Power BI": "Built dashboard and KPI reporting work that can be positioned for Power BI or Tableau-driven reporting needs.",
+    Tableau: "Created stakeholder-facing dashboards and translated analytical outputs into business-friendly views.",
+    Excel: "Used Excel alongside Python and SQL for analysis, reporting, and research dataset workflows.",
+    SQL: "Used SQL for exploratory analysis, troubleshooting, validation, and operational data problem solving.",
+    Python: "Built Python workflows for cleaning, EDA, feature engineering, forecasting, and predictive modeling.",
+    Forecasting: "Completed forecasting and predictive analytics projects tied to customer behavior, operations, and financial indicators.",
+    "KPI Reporting": "Developed KPI-oriented dashboards and reporting summaries for non-technical stakeholders.",
+    "Data Validation": "Performed data validation, quality checks, and troubleshooting across research and operational datasets.",
+    "Data Quality Checks": "Improved processing and reporting reliability through structured cleaning, validation, and QA checks.",
+    "Dashboard Development": "Built dashboards and reporting tools to make technical analysis easier for stakeholders to use.",
+    "Predictive Analytics": "Developed predictive models and communicated results through practical business recommendations.",
+  };
+
+  const alignedSkills = matchedSkills
+    .map((skill) => skillEvidence[skill])
+    .filter((evidence): evidence is string => Boolean(evidence));
+
+  return Array.from(new Set([strengths.primaryEvidence, ...alignedSkills])).slice(0, 5);
 }
 
 function buildResumeExperienceBlock(
@@ -404,9 +428,9 @@ function getResumeSkillGroups(matchedSkills: string[]) {
   const prioritizedSkills = new Set(matchedSkills);
 
   return [
-    `Analytics & Visualization: ${joinKnownSkills(["Tableau", "Matplotlib", "Dashboard Development"], prioritizedSkills)}`,
+    `Analytics & Visualization: ${joinKnownSkills(["Power BI", "Tableau", "Excel", "Matplotlib", "Dashboard Development"], prioritizedSkills)}`,
     `Programming & Databases: ${joinKnownSkills(["Python", "SQL", "Pandas", "NumPy"], prioritizedSkills)}`,
-    `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Data Validation"], prioritizedSkills)}`,
+    `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting", "Data Validation"], prioritizedSkills)}`,
     "Business Tools: Microsoft Office Suite, Excel, Reporting & Presentation Development",
   ];
 }
@@ -433,6 +457,8 @@ function getMatchedSkills(application: ApplicationDraft) {
     "Feature Engineering",
     "Dashboard Development",
     "Predictive Analytics",
+    "Forecasting",
+    "KPI Reporting",
     "Data Validation",
   ];
 

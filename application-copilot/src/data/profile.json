@@ -26,8 +26,8 @@
   "skills": {
     "programming": ["Python", "Pandas", "NumPy", "Scikit-learn", "PyCaret", "NLTK", "SQL"],
     "machineLearning": ["Regression", "Classification", "Time Series Forecasting", "NLP", "Model Evaluation"],
-    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics"],
-    "visualization": ["Tableau", "Matplotlib", "Dashboard Development"],
+    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting"],
+    "visualization": ["Power BI", "Tableau", "Excel", "Matplotlib", "Dashboard Development"],
     "platforms": ["Azure", "Databricks", "Snowflake", "Linux"],
     "dataEngineering": ["Data Pipelines", "Data Validation", "Data Quality Checks", "Failover Testing"]
   },
