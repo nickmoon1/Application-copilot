@@ -124,6 +124,16 @@ export async function POST(request: Request) {
       owner: config.owner,
       repo: config.repo,
       branch: branchName,
+      path: `${folder}/keyword-match-report.md`,
+      message: "Add keyword match report",
+      content: packet.keywordReport,
+    });
+
+    await createOrUpdateFile({
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      branch: branchName,
       path: `${folder}/checklist.md`,
       message: "Add application review checklist",
       content: packet.checklist,

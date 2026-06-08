@@ -15,7 +15,8 @@ type ApplicationDraft = {
 
 export function generateApplicationPacket(application: ApplicationDraft) {
   const strengths = selectStrengths(application);
-  const resumeTailoring = buildResumeTailoring(application, strengths);
+  const keywordGate = buildKeywordGate(application);
+  const resumeTailoring = buildResumeTailoring(application, strengths, keywordGate);
   const questionsToVerify = getQuestionsToVerify(application);
   const answerDrafts = {
     whyThisRole: [
@@ -36,13 +37,15 @@ export function generateApplicationPacket(application: ApplicationDraft) {
     notesForReview: application.notes || "No extra notes provided.",
     questionsToVerify,
     profileEvidenceUsed: strengths.evidenceUsed,
+    keywordGate,
   };
 
   return {
     answers: JSON.stringify(answerDrafts, null, 2),
     coverLetter: buildCoverLetter(application, strengths),
     checklist: buildChecklist(application, questionsToVerify),
-    reviewNotes: buildReviewNotes(application, strengths, questionsToVerify),
+    keywordReport: buildKeywordReport(application, keywordGate),
+    reviewNotes: buildReviewNotes(application, strengths, questionsToVerify, keywordGate),
     tailoredResume: resumeTailoring,
     tailoredResumeDocx: generateResumeDocx(resumeTailoring),
     answerStyle: JSON.stringify(answerStyle, null, 2),
@@ -99,6 +102,120 @@ function selectStrengths(application: ApplicationDraft) {
 function addEvidence(value: string, evidenceUsed: Set<string>, technicalFit: Set<string>) {
   evidenceUsed.add(value);
   technicalFit.add(value);
+}
+
+function buildKeywordGate(application: ApplicationDraft) {
+  const searchable = normalizeKeywordText(`${application.role} ${application.notes} ${application.source} ${application.jobUrl}`);
+  const approvedKeywords = getApprovedKeywordMap();
+  const detectedKeywords = getCandidateKeywords().filter((keyword) => searchable.includes(keyword.normalized));
+  const verifiedKeywords = detectedKeywords
+    .filter((keyword) => approvedKeywords.has(keyword.normalized))
+    .map((keyword) => approvedKeywords.get(keyword.normalized) ?? keyword.label);
+  const heldBackKeywords = detectedKeywords
+    .filter((keyword) => !approvedKeywords.has(keyword.normalized))
+    .map((keyword) => keyword.label);
+  const uniqueVerifiedKeywords = Array.from(new Set(verifiedKeywords));
+  const uniqueHeldBackKeywords = Array.from(new Set(heldBackKeywords));
+  const coveragePercent =
+    detectedKeywords.length > 0 ? Math.round((uniqueVerifiedKeywords.length / detectedKeywords.length) * 100) : 100;
+
+  return {
+    detectedKeywords: Array.from(new Set(detectedKeywords.map((keyword) => keyword.label))),
+    verifiedKeywords: uniqueVerifiedKeywords,
+    heldBackKeywords: uniqueHeldBackKeywords,
+    coveragePercent,
+  };
+}
+
+function getApprovedKeywordMap() {
+  const approved = new Map<string, string>();
+  const skills = Object.values(profile.skills).flat();
+
+  for (const skill of skills) {
+    approved.set(normalizeKeywordText(skill), skill);
+  }
+
+  const aliases: Record<string, string> = {
+    "scikit learn": "Scikit-learn",
+    sklearn: "Scikit-learn",
+    "time series": "Time Series Forecasting",
+    forecast: "Forecasting",
+    forecasting: "Forecasting",
+    dashboard: "Dashboard Development",
+    dashboards: "Dashboard Development",
+    "data quality": "Data Quality Checks",
+    "data validation": "Data Validation",
+    "statistical modelling": "Statistical Modeling",
+    "statistical modeling": "Statistical Modeling",
+    "machine learning": "Model Evaluation",
+    "ml": "Model Evaluation",
+    "business intelligence": "Dashboard Development",
+    "kpi": "KPI Reporting",
+    "kpis": "KPI Reporting",
+    "powerbi": "Power BI",
+  };
+
+  for (const [alias, skill] of Object.entries(aliases)) {
+    if (skills.includes(skill)) {
+      approved.set(normalizeKeywordText(alias), skill);
+    }
+  }
+
+  return approved;
+}
+
+function getCandidateKeywords() {
+  const profileSkills = Object.values(profile.skills).flat().map((skill) => ({
+    label: skill,
+    normalized: normalizeKeywordText(skill),
+  }));
+  const watchlist = [
+    "AWS",
+    "GCP",
+    "TensorFlow",
+    "PyTorch",
+    "Spark",
+    "Hadoop",
+    "Kafka",
+    "Airflow",
+    "dbt",
+    "SAS",
+    "Looker",
+    "Alteryx",
+    "Power Automate",
+    "LangChain",
+    "LLM",
+    "MLOps",
+    "Docker",
+    "Kubernetes",
+    "NoSQL",
+    "MongoDB",
+    "PostgreSQL",
+    "MySQL",
+    "Oracle",
+    "Salesforce",
+    "Workday",
+    "Financial regulations",
+    "CCAR",
+    "CECL",
+    "SR 11-7",
+  ].map((keyword) => ({
+    label: keyword,
+    normalized: normalizeKeywordText(keyword),
+  }));
+
+  return Array.from(
+    new Map([...profileSkills, ...watchlist].map((keyword) => [keyword.normalized, keyword])).values(),
+  ).filter((keyword) => keyword.normalized.length > 2);
+}
+
+function normalizeKeywordText(value: string) {
+  return value
+    .toLowerCase()
+    .replace(/&/g, " and ")
+    .replace(/[^a-z0-9+#.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 function getQuestionsToVerify(application: ApplicationDraft) {
@@ -173,10 +290,45 @@ ${questionsToVerify.map((question) => `- [ ] ${question}`).join("\n")}
 `;
 }
 
+function buildKeywordReport(application: ApplicationDraft, keywordGate: ReturnType<typeof buildKeywordGate>) {
+  return `# Keyword Match Report
+
+This report explains which role keywords were allowed into the application packet and which were held back for human review.
+
+## Job
+
+- Company: ${application.company}
+- Role: ${application.role}
+- Source: ${application.source}
+- Job URL: ${application.jobUrl || "Not provided"}
+
+## Verified Keywords Included
+
+${keywordGate.verifiedKeywords.length > 0 ? keywordGate.verifiedKeywords.map((keyword) => `- ${keyword}`).join("\n") : "- None detected"}
+
+## Detected But Held Back
+
+${keywordGate.heldBackKeywords.length > 0 ? keywordGate.heldBackKeywords.map((keyword) => `- ${keyword}`).join("\n") : "- None"}
+
+## Coverage
+
+- Detected job keywords: ${keywordGate.detectedKeywords.length}
+- Verified keyword matches: ${keywordGate.verifiedKeywords.length}
+- Coverage: ${keywordGate.coveragePercent}%
+
+## Notes
+
+- Held-back keywords should not be added to the resume unless you can truthfully defend them in an interview.
+- If a held-back keyword is a tool you have used, add it to the approved profile evidence before generating the next packet.
+- If a held-back keyword is only adjacent to your experience, keep it in review notes or learning gaps instead of the resume.
+`;
+}
+
 function buildReviewNotes(
   application: ApplicationDraft,
   strengths: ReturnType<typeof selectStrengths>,
   questionsToVerify: string[],
+  keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   return `# Transparent Review Notes
 
@@ -186,10 +338,17 @@ This packet was generated from the local profile and resume-derived evidence. Re
 
 ${strengths.evidenceUsed.map((item) => `- ${item}`).join("\n")}
 
+## Truthful Keyword Gate
+
+- Verified keywords included: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
+- Detected but not included without review: ${keywordGate.heldBackKeywords.join(", ") || "None"}
+- Resume match coverage: ${keywordGate.coveragePercent}%
+
 ## Drafting Logic
 
 - The role was matched against target roles, location preference, and keywords in the job title/source notes.
 - The cover letter emphasizes concrete resume evidence instead of unsupported claims.
+- Unverified tools are held back from resume claims unless they appear in the approved local profile.
 - The answer drafts are meant to be reviewed and edited before any employer form submission.
 
 ## Verify Before Submit
@@ -202,8 +361,12 @@ ${application.notes || "No extra notes provided."}
 `;
 }
 
-function buildResumeTailoring(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
-  const matchedSkills = getMatchedSkills(application);
+function buildResumeTailoring(
+  application: ApplicationDraft,
+  strengths: ReturnType<typeof selectStrengths>,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
+  const matchedSkills = getMatchedSkills(application, keywordGate);
   const prioritizedExperience = getPrioritizedExperience(application);
   const headline = getResumeHeadline(application);
   const summary = getResumeSummary(application, strengths);
@@ -227,6 +390,12 @@ ${targetAlignment.length > 0 ? `## TARGET ROLE ALIGNMENT\n\n${targetAlignment.ma
 ## CORE COMPETENCIES
 
 ${matchedSkills.map((skill) => `- ${skill}`).join("\n")}
+
+## KEYWORD MATCH
+
+- Verified keywords emphasized: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
+- Keywords held for review: ${keywordGate.heldBackKeywords.join(", ") || "None"}
+- Keyword coverage: ${keywordGate.coveragePercent}%
 
 ## PROFESSIONAL EXPERIENCE
 
@@ -257,6 +426,8 @@ ${profile.certifications.map((item) => `- ${item}`).join("\n")}
 - Job URL: ${application.jobUrl || "Not provided"}
 - Match score: ${application.matchScore}%
 - Evidence emphasized: ${strengths.evidenceUsed.join(" ")}
+- Verified role keywords: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
+- Held-back role keywords: ${keywordGate.heldBackKeywords.join(", ") || "None"}
 
 ## Guardrails
 
@@ -430,6 +601,7 @@ function getResumeSkillGroups(matchedSkills: string[]) {
   return [
     `Analytics & Visualization: ${joinKnownSkills(["Power BI", "Tableau", "Excel", "Matplotlib", "Dashboard Development"], prioritizedSkills)}`,
     `Programming & Databases: ${joinKnownSkills(["Python", "SQL", "Pandas", "NumPy"], prioritizedSkills)}`,
+    `Machine Learning: ${joinKnownSkills(["Scikit-learn", "PyCaret", "NLTK", "Regression", "Classification", "Time Series Forecasting", "Model Evaluation"], prioritizedSkills)}`,
     `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting", "Data Validation"], prioritizedSkills)}`,
     "Business Tools: Microsoft Office Suite, Excel, Reporting & Presentation Development",
   ];
@@ -445,10 +617,11 @@ function joinKnownSkills(skills: string[], prioritizedSkills: Set<string>) {
   return Array.from(new Set(orderedSkills)).join(", ");
 }
 
-function getMatchedSkills(application: ApplicationDraft) {
+function getMatchedSkills(application: ApplicationDraft, keywordGate: ReturnType<typeof buildKeywordGate>) {
   const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
   const allSkills = Object.values(profile.skills).flat();
   const matched = allSkills.filter((skill) => searchable.includes(skill.toLowerCase()));
+  const verified = keywordGate.verifiedKeywords.filter((keyword) => allSkills.includes(keyword));
   const fallback = [
     "Python",
     "SQL",
@@ -462,7 +635,7 @@ function getMatchedSkills(application: ApplicationDraft) {
     "Data Validation",
   ];
 
-  return Array.from(new Set([...matched, ...fallback])).slice(0, 12);
+  return Array.from(new Set([...verified, ...matched, ...fallback])).slice(0, 14);
 }
 
 function getPrioritizedExperience(application: ApplicationDraft) {

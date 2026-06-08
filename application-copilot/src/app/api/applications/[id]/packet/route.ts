@@ -13,6 +13,7 @@ const packetFiles = [
   "answers.json",
   "cover-letter.md",
   "tailored-resume.md",
+  "keyword-match-report.md",
   "answer-style.json",
   "checklist.md",
   "review-notes.md",
@@ -48,7 +49,11 @@ export async function GET(_request: Request, { params }: Params) {
         repo: config.repo,
         branch: application.branch,
         path: `${folder}/${filename}`,
-        optional: filename === "review-notes.md" || filename === "tailored-resume.md" || filename === "answer-style.json",
+        optional:
+          filename === "review-notes.md" ||
+          filename === "tailored-resume.md" ||
+          filename === "keyword-match-report.md" ||
+          filename === "answer-style.json",
       });
 
       files[filename] = content;

@@ -79,6 +79,34 @@ const nttPriorityJobs: JobSeed[] = [
   },
 ];
 
+const deloitteCareersUrl = "https://apply.deloitte.com/en_US/careers";
+const deloittePriorityJobs: JobSeed[] = [
+  {
+    id: "deloitte-ai-and-data-science-engineer-iii-354798",
+    company: "Deloitte",
+    role: "AI and Data Science Engineer III",
+    location: "Dallas, TX / Multiple U.S. locations",
+    source: "Deloitte Careers - Priority",
+    jobUrl: "https://apply.deloitte.com/en_US/careers/JobDetail/AI-and-Data-Science-Engineer-III/354798",
+    posted: new Date().toISOString().slice(0, 10),
+    summary:
+      "Live Deloitte data and analytics role in Artificial Intelligence and Data Science, available in Dallas and other U.S. locations.",
+    keywords: ["data scientist", "ai", "machine learning", "python", "sql", "data analytics", "artificial intelligence"],
+  },
+  {
+    id: "deloitte-data-scientist-352997",
+    company: "Deloitte",
+    role: "Data Scientist",
+    location: "Dallas, TX / Multiple U.S. locations",
+    source: "Deloitte Careers - Priority",
+    jobUrl: "https://apply.deloitte.com/en_US/careers/JobDetail/Data-Scientist/352997",
+    posted: new Date().toISOString().slice(0, 10),
+    summary:
+      "Live Deloitte Data Scientist role in Data and Analytics / Artificial Intelligence and Data Science, available in Dallas and other U.S. locations.",
+    keywords: ["data scientist", "machine learning", "python", "sql", "data analytics", "predictive analytics"],
+  },
+];
+
 const fallbackJobs: JobSeed[] = [
   {
     id: "capital-one-principal-data-analyst-plano",
@@ -153,10 +181,12 @@ export async function discoverJobs() {
   const citiDiscovery = await discoverCitiJobs();
   const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
   const nttDiscovery = await discoverNttJobs();
+  const deloitteDiscovery = discoverDeloitteJobs();
   const seeds = mergeJobs([
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
     ...citiJobs,
     ...nttDiscovery.jobs,
+    ...deloitteDiscovery.jobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
@@ -190,6 +220,12 @@ export async function discoverJobs() {
         url: nttDataAnalyticsUrl,
         mode: nttDiscovery.mode,
         found: nttDiscovery.jobs.length,
+      },
+      {
+        name: "Deloitte Careers",
+        url: deloitteCareersUrl,
+        mode: deloitteDiscovery.mode,
+        found: deloitteDiscovery.jobs.length,
       },
     ],
   };
@@ -401,6 +437,17 @@ function getLiveConnectorMode(parsedCount: number, acceptedCount: number) {
   }
 
   return "unavailable";
+}
+
+function discoverDeloitteJobs() {
+  const jobs = deloittePriorityJobs
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role));
+
+  return {
+    jobs,
+    mode: jobs.length > 0 ? "priority" : "priority_no_matches",
+  };
 }
 
 async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
