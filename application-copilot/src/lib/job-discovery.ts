@@ -107,6 +107,37 @@ const deloittePriorityJobs: JobSeed[] = [
   },
 ];
 
+const jpmorganChaseCareersUrl =
+  "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions";
+const jpmorganChasePriorityJobs: JobSeed[] = [
+  {
+    id: "jpmc-field-examination-data-analytics-analyst-210753505",
+    company: "JPMorgan Chase",
+    role: "Field Examination & Data Analytics Analyst",
+    location: "Dallas, TX",
+    source: "JPMorgan Chase Careers - Priority",
+    jobUrl:
+      "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/job/210753505/?keyword=data&location=Dallas%252C+Collin%252C++TX%252C++United+States&locationId=300000020678217&locationLevel=city&mode=location&radius=25&radiusUnit=MI",
+    posted: new Date().toISOString().slice(0, 10),
+    summary:
+      "JPMorgan Chase Dallas analytics role focused on KPI dashboards, historical performance data, SQL analysis, AI-assisted analytics, and recurring report automation.",
+    keywords: ["data analyst", "analytics", "sql", "kpi", "dashboard", "reporting", "ai", "financial analytics"],
+  },
+  {
+    id: "jpmc-data-scientist-associate-payments-plano",
+    company: "JPMorgan Chase",
+    role: "Data Scientist Associate - Payments",
+    location: "Plano, TX",
+    source: "JPMorgan Chase Careers - Priority",
+    jobUrl:
+      "https://jpmc.fa.oraclecloud.com/hcmUI/CandidateExperience/en/sites/CX_1001/requisitions?keyword=Data%20Scientist%20Associate%20Payments&location=Plano%252C%20TX%252C%20United%20States&locationLevel=city&mode=location",
+    posted: new Date().toISOString().slice(0, 10),
+    summary:
+      "JPMorgan Chase Plano payments analytics role focused on data science, cost-based analytics, GenAI/agentic AI applications, business intelligence, data engineering, and visualization.",
+    keywords: ["data scientist", "python", "sql", "genai", "business intelligence", "data engineering", "visualization"],
+  },
+];
+
 const fallbackJobs: JobSeed[] = [
   {
     id: "capital-one-principal-data-analyst-plano",
@@ -182,11 +213,13 @@ export async function discoverJobs() {
   const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
   const nttDiscovery = await discoverNttJobs();
   const deloitteDiscovery = discoverDeloitteJobs();
+  const jpmorganChaseDiscovery = discoverJpmorganChaseJobs();
   const seeds = mergeJobs([
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
     ...citiJobs,
     ...nttDiscovery.jobs,
     ...deloitteDiscovery.jobs,
+    ...jpmorganChaseDiscovery.jobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
@@ -226,6 +259,12 @@ export async function discoverJobs() {
         url: deloitteCareersUrl,
         mode: deloitteDiscovery.mode,
         found: deloitteDiscovery.jobs.length,
+      },
+      {
+        name: "JPMorgan Chase Careers",
+        url: jpmorganChaseCareersUrl,
+        mode: jpmorganChaseDiscovery.mode,
+        found: jpmorganChaseDiscovery.jobs.length,
       },
     ],
   };
@@ -441,6 +480,17 @@ function getLiveConnectorMode(parsedCount: number, acceptedCount: number) {
 
 function discoverDeloitteJobs() {
   const jobs = deloittePriorityJobs
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role));
+
+  return {
+    jobs,
+    mode: jobs.length > 0 ? "priority" : "priority_no_matches",
+  };
+}
+
+function discoverJpmorganChaseJobs() {
+  const jobs = jpmorganChasePriorityJobs
     .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
     .filter((job) => !isOverSeniorForCurrentProfile(job.role));
 

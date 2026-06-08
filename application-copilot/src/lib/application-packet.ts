@@ -242,15 +242,17 @@ function getQuestionsToVerify(application: ApplicationDraft) {
 }
 
 function buildCoverLetter(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
+  const portfolioCaseStudy = getPortfolioCaseStudy(application);
+
   return `# ${application.company} - ${application.role}
 
 Dear Hiring Team,
 
 I am interested in the ${application.role} role at ${application.company}. I am based in ${profile.location}, and this opportunity aligns with my focus on data science, analytics, data engineering, business analysis, and practical stakeholder-facing problem solving.
 
-My background includes ${strengths.primaryEvidence} I have also built Python pipelines for data cleaning, exploratory analysis, and feature engineering, developed predictive models, and created Tableau dashboards that help non-technical stakeholders understand trends and decisions.
+My background includes ${strengths.primaryEvidence} I approach data work the way I present projects in my portfolio: start with the business question, build a clean analytical workflow, then translate findings into decisions a technical or non-technical audience can use.
 
-One relevant example is ${strengths.projectExamples[0]} Another is my field engineering work maintaining real-time transportation data pipelines and resolving data/system issues using SQL, Python, and Linux.
+One relevant example is ${portfolioCaseStudy.coverLetterExample} Another is my field engineering work maintaining real-time transportation data pipelines and resolving data/system issues using SQL, Python, and Linux.
 
 I would bring a practical mix of technical execution, business communication, and teaching/mentoring experience to this role.
 
@@ -372,10 +374,11 @@ function buildResumeTailoring(
   const summary = getResumeSummary(application, strengths);
   const skillGroups = getResumeSkillGroups(matchedSkills);
   const targetAlignment = getTargetRoleAlignment(matchedSkills, strengths);
+  const portfolioCaseStudy = getPortfolioCaseStudy(application);
 
   return `# Tailored Resume Draft - ${application.company} ${application.role}
 
-This is a resume-shaped draft for review. It follows the calibrated Citi resume structure and should only reorder or emphasize truthful experience already present in the profile/resume.
+This is a resume-shaped draft for review. It follows the portfolio direction: business question, method, finding, and practical impact. It should only reorder or emphasize truthful experience already present in the profile/resume.
 
 ## ${profile.name.toUpperCase()}
 
@@ -387,6 +390,13 @@ ${profile.links.linkedin} | ${profile.links.portfolio}
 ${summary}
 
 ${targetAlignment.length > 0 ? `## TARGET ROLE ALIGNMENT\n\n${targetAlignment.map((item) => `- ${item}`).join("\n")}\n` : ""}
+## SELECTED PORTFOLIO EVIDENCE
+
+- Business question: ${portfolioCaseStudy.businessQuestion}
+- Method: ${portfolioCaseStudy.method}
+- Finding / impact: ${portfolioCaseStudy.impact}
+- Portfolio: ${profile.links.portfolio}
+
 ## CORE COMPETENCIES
 
 ${matchedSkills.map((skill) => `- ${skill}`).join("\n")}
@@ -476,7 +486,61 @@ function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<t
       ? "data science, predictive analytics, dashboarding, and stakeholder-facing insights"
       : "business analytics, SQL analysis, reporting, dashboards, and stakeholder-facing problem solving";
 
-  return `I am a data professional focused on ${focus}. My background includes ${strengths.primaryEvidence} My experience spans Python, SQL, dashboards, data cleaning, data validation, forecasting, teaching, and translating technical work into practical decisions.`;
+  return `I am a data professional focused on ${focus}. My background includes ${strengths.primaryEvidence} My work is strongest when it connects a clear business question to a clean analytical workflow, then turns model output, dashboard findings, or data quality patterns into practical decisions.`;
+}
+
+function getPortfolioCaseStudy(application: ApplicationDraft) {
+  const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+
+  if (searchable.includes("nlp") || searchable.includes("speech") || searchable.includes("voice") || searchable.includes("genai")) {
+    return {
+      businessQuestion:
+        "How can speech and language workflows become more accurate and inclusive for users with different accents and interaction patterns?",
+      method:
+        "Processed audio data, generated spectrogram-based features, and trained a PyTorch-supported speech workflow while evaluating transcription quality.",
+      impact:
+        "Framed model performance around usability and fairness, not only accuracy, so the work could support more inclusive voice user experiences.",
+      coverLetterExample:
+        "my graduate NLP and voice user interface research, where I processed speech audio, trained a PyTorch-supported workflow, and evaluated transcription quality with a focus on accent-aware user experience.",
+    };
+  }
+
+  if (searchable.includes("scientist") || searchable.includes("machine learning") || searchable.includes("predictive")) {
+    return {
+      businessQuestion:
+        "Which customers are most likely to subscribe or spend more, and how can model output support better targeting decisions?",
+      method:
+        "Prepared customer features, compared regression and classification models with Python and PyCaret, and balanced predictive performance with stakeholder interpretability.",
+      impact:
+        "Turned model results into a practical prioritization lens for marketing and sales teams, rather than reporting accuracy scores in isolation.",
+      coverLetterExample:
+        "my customer prediction case study, where I built regression and classification models on 16,519 customer records to predict monthly spend and subscription likelihood.",
+    };
+  }
+
+  if (searchable.includes("dashboard") || searchable.includes("business intelligence") || searchable.includes("reporting")) {
+    return {
+      businessQuestion:
+        "How can non-technical stakeholders understand trends, predictions, comparisons, and KPI movement quickly enough to act?",
+      method:
+        "Built story-first Tableau dashboards and KPI summaries that paired dataset context with clear trends, forecasts, and takeaways.",
+      impact:
+        "Helped viewers move from chart reading to decision insight without needing a live technical walkthrough.",
+      coverLetterExample:
+        "my Tableau dashboard work, where I designed KPI, trend, and forecast views so non-technical stakeholders could quickly interpret model outputs and business patterns.",
+    };
+  }
+
+  return {
+    businessQuestion:
+      "What patterns, data quality issues, and operational signals should be understood before a dataset supports reporting or modeling?",
+    method:
+      "Used Python, SQL, EDA, cleaning, validation, and feature review to profile real-world education, healthcare, and operational datasets.",
+    impact:
+      "Improved the reliability of downstream analysis by making data issues, trends, and next modeling steps easier to explain and act on.",
+    coverLetterExample:
+      "my education and healthcare analytics work, where I used Python, SQL, exploratory analysis, and data cleaning to make real-world datasets more useful for reporting and modeling.",
+  };
 }
 
 function getTargetRoleAlignment(matchedSkills: string[], strengths: ReturnType<typeof selectStrengths>) {
