@@ -69,30 +69,50 @@
       "role": "Practical Data Science & Gen AI Trainee",
       "organization": "Data Science Academy",
       "location": "Dallas, TX",
+      "dates": "2025",
+      "startYear": 2025,
+      "endYear": 2025,
+      "resumeOrder": 2,
       "focus": ["Python pipelines", "Machine learning", "SQL exploratory analysis", "Tableau dashboards"]
     },
     {
       "role": "Field Engineer (Data & Systems)",
       "organization": "Thales Group",
       "location": "New York, NY",
+      "dates": "2023 - 2024",
+      "startYear": 2023,
+      "endYear": 2024,
+      "resumeOrder": 3,
       "focus": ["Real-time data pipelines", "Sensor inputs", "SQL", "Python", "Linux", "System reliability"]
     },
     {
       "role": "Data Analyst / Research Assistant",
       "organization": "University of Nebraska-Lincoln",
       "location": "Lincoln, NE",
+      "dates": "2020 - 2022",
+      "startYear": 2020,
+      "endYear": 2022,
+      "resumeOrder": 4,
       "focus": ["Survey and educational datasets", "Python", "SQL", "Data validation", "Visualization"]
     },
     {
       "role": "IT Security & Data Operations Intern",
       "organization": "Ameritas Life Insurance",
       "location": "Lincoln, NE",
+      "dates": "2021 - 2022",
+      "startYear": 2021,
+      "endYear": 2022,
+      "resumeOrder": 5,
       "focus": ["Secure data ingestion", "Access controls", "Governance processes", "Operational reporting"]
     },
     {
       "role": "Consultant and Teaching Assistant",
       "organization": "Benedict College",
       "location": "Columbia, SC",
+      "dates": "2024 - 2026",
+      "startYear": 2024,
+      "endYear": 2026,
+      "resumeOrder": 1,
       "focus": ["Python fundamentals", "Web development", "Applied analytics", "Chatbot projects"]
     }
   ],

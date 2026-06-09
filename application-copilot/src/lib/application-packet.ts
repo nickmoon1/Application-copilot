@@ -369,7 +369,7 @@ function buildResumeTailoring(
   keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   const matchedSkills = getMatchedSkills(application, keywordGate);
-  const prioritizedExperience = getPrioritizedExperience(application);
+  const prioritizedExperience = getPrioritizedExperience();
   const headline = getResumeHeadline(application);
   const summary = getResumeSummary(application, strengths);
   const skillGroups = getResumeSkillGroups(matchedSkills);
@@ -378,7 +378,7 @@ function buildResumeTailoring(
 
   return `# Tailored Resume Draft - ${application.company} ${application.role}
 
-This is a resume-shaped draft for review. It follows the portfolio direction: business question, method, finding, and practical impact. It should only reorder or emphasize truthful experience already present in the profile/resume.
+This is a resume-shaped draft for review. It follows the portfolio direction: business question, method, finding, and practical impact. Experience is kept in reverse-chronological order while bullets are tailored to the role.
 
 ## ${profile.name.toUpperCase()}
 
@@ -567,6 +567,7 @@ function getTargetRoleAlignment(matchedSkills: string[], strengths: ReturnType<t
 
 function buildResumeExperienceBlock(
   item: {
+    dates?: string;
     role: string;
     organization: string;
     location: string;
@@ -576,7 +577,7 @@ function buildResumeExperienceBlock(
 ) {
   return [
     `### ${item.organization} - ${item.location}`,
-    `**${item.role}**`,
+    `**${[item.role, item.dates].filter(Boolean).join(" | ")}**`,
     ...getExperienceBullets(item, application).map((bullet) => `- ${bullet}`),
   ].join("\n");
 }
@@ -702,23 +703,12 @@ function getMatchedSkills(application: ApplicationDraft, keywordGate: ReturnType
   return Array.from(new Set([...verified, ...matched, ...fallback])).slice(0, 14);
 }
 
-function getPrioritizedExperience(application: ApplicationDraft) {
-  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+function getPrioritizedExperience() {
   const experience = [...profile.experience];
 
-  return experience.sort((left, right) => scoreExperience(right, searchable) - scoreExperience(left, searchable));
+  return experience.sort((left, right) => getExperienceResumeOrder(left) - getExperienceResumeOrder(right));
 }
 
-function scoreExperience(
-  item: {
-    role: string;
-    organization: string;
-    focus: string[];
-  },
-  searchable: string,
-) {
-  const haystack = `${item.role} ${item.organization} ${item.focus.join(" ")}`.toLowerCase();
-  const keywords = searchable.split(/[^a-z0-9+#.]+/).filter((keyword) => keyword.length > 2);
-
-  return keywords.reduce((score, keyword) => score + (haystack.includes(keyword) ? 1 : 0), 0);
+function getExperienceResumeOrder(item: { endYear?: number; resumeOrder?: number; startYear?: number }) {
+  return item.resumeOrder ?? -(item.endYear ?? item.startYear ?? 0);
 }
