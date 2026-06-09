@@ -1,5 +1,6 @@
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
+import { scorePortfolioFit, type PortfolioFit } from "@/lib/portfolio-fit";
 
 type JobSeed = {
   id: string;
@@ -17,6 +18,7 @@ type JobSeed = {
 export type DiscoveredJob = JobSeed & {
   locationFit: string;
   matchScore: number;
+  portfolioFit: PortfolioFit;
   validationStatus: string;
   validationDetails: string;
   validationCheckedAt: string;
@@ -224,8 +226,9 @@ export async function discoverJobs() {
   ]);
   const matchedSeeds = seeds
     .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .sort((a, b) => scoreJob(b) - scoreJob(a));
-  const candidates = await Promise.all(matchedSeeds.map(enrichJob));
+    .sort((a, b) => scorePortfolioFit(b).score - scorePortfolioFit(a).score);
+  const candidates = (await Promise.all(matchedSeeds.map(enrichJob)))
+    .filter((candidate) => candidate.portfolioFit.tier !== "LOW");
 
   candidates
     .sort((a, b) => b.matchScore - a.matchScore);
@@ -502,7 +505,8 @@ function discoverJpmorganChaseJobs() {
 
 async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
   const locationFit = getLocationFit(job);
-  const matchScore = scoreJob(job);
+  const portfolioFit = scorePortfolioFit(job);
+  const matchScore = scoreJob(job, portfolioFit);
   const validation = await validateJob(job);
   const jobEvidence = validation.evidence;
 
@@ -510,6 +514,7 @@ async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
     ...job,
     locationFit,
     matchScore,
+    portfolioFit,
     validationStatus: validation.status,
     validationDetails: validation.details,
     validationCheckedAt: validation.checkedAt,
@@ -517,6 +522,8 @@ async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
       `Discovered from ${job.source}.`,
       `Location fit: ${locationFit} (${job.location}).`,
       `Role keywords: ${job.keywords.slice(0, 6).join(", ")}.`,
+      `Portfolio fit: ${portfolioFit.tier} (${portfolioFit.score}%) - ${portfolioFit.matchedAnchors.slice(0, 4).join("; ") || "No strong portfolio anchors matched"}.`,
+      portfolioFit.missingAnchors.length > 0 ? `Portfolio gaps to review: ${portfolioFit.missingAnchors.join("; ")}.` : "",
       jobEvidence.length > 0 ? `Job evidence keywords: ${jobEvidence.join(", ")}.` : "",
       `Validation: ${validation.details}.`,
       matchScore >= 90
@@ -893,7 +900,7 @@ function inferKeywords(role: string) {
   return Array.from(keywords);
 }
 
-function scoreJob(job: JobSeed) {
+function scoreJob(job: JobSeed, portfolioFit: PortfolioFit) {
   let score = 72;
   const searchable = `${job.role} ${job.summary} ${job.keywords.join(" ")}`.toLowerCase();
 
@@ -907,6 +914,9 @@ function scoreJob(job: JobSeed) {
   if (searchable.includes("data analyst") || searchable.includes("analytics")) score += 4;
   if (searchable.includes("big data")) score += 3;
   if (searchable.includes("stakeholder")) score += 2;
+  if (portfolioFit.tier === "STRONG") score += 6;
+  if (portfolioFit.tier === "REVIEW") score += 2;
+  if (portfolioFit.tier === "LOW") score -= 8;
 
   return Math.min(score, 97);
 }

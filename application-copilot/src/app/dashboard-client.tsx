@@ -560,6 +560,11 @@ export default function DashboardClient({
                   <p className="validation-note">{candidate.validationDetails}</p>
                   <div className="tag-row">
                     <span className="pill ready">{candidate.matchScore}% match</span>
+                    {candidate.portfolioFit && (
+                      <span className="pill">
+                        Portfolio {candidate.portfolioFit.tier} ({candidate.portfolioFit.score}%)
+                      </span>
+                    )}
                     <span className="pill">{candidate.locationFit}</span>
                     <span className="pill">{candidate.validationStatus}</span>
                     {candidate.keywords.slice(0, 4).map((keyword) => (
@@ -628,6 +633,7 @@ export default function DashboardClient({
                         <span>{candidate.source}</span>
                         <span>{candidate.locationFit}</span>
                         <span>{candidate.validationStatus}</span>
+                        {candidate.portfolioFit && <span>Portfolio {candidate.portfolioFit.tier}</span>}
                       </div>
                     </div>
                     <p>{candidate.summary}</p>
