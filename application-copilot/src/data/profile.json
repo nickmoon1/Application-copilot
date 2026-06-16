@@ -26,10 +26,10 @@
   "skills": {
     "programming": ["Python", "Pandas", "NumPy", "Scikit-learn", "PyCaret", "NLTK", "SQL"],
     "machineLearning": ["Regression", "Classification", "Time Series Forecasting", "NLP", "Model Evaluation", "Prophet", "PyTorch"],
-    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting"],
+    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting", "Financial Analytics", "Public Data Analysis"],
     "visualization": ["Power BI", "Tableau", "Excel", "Matplotlib", "Dashboard Development"],
     "platforms": ["Azure", "Databricks", "Snowflake", "Linux"],
-    "dataEngineering": ["Data Pipelines", "Data Validation", "Data Quality Checks", "Failover Testing"]
+    "dataEngineering": ["Data Pipelines", "Data Validation", "Data Quality Checks", "Failover Testing", "SQLite"]
   },
   "highlights": [
     "Built end-to-end Python pipelines for cleaning, EDA, and feature engineering on real-world datasets.",
@@ -40,6 +40,7 @@
     "Diagnosed and resolved 50+ system and data issues using SQL, Python, and Linux.",
     "Improved data processing efficiency by 30% through structured cleaning and validation.",
     "Created Tableau dashboards and reports for non-technical stakeholders.",
+    "Built a CFPB consumer complaint analytics workflow using Python, SQL, SQLite, and dashboard metrics to analyze financial product trends, response outcomes, and Texas complaint patterns.",
     "Taught Python fundamentals and mentored applied analytics and chatbot development projects."
   ],
   "projects": [
@@ -62,6 +63,10 @@
     {
       "name": "Tableau Dashboards",
       "summary": "Designed dashboards to visualize trends, forecasts, and KPIs for non-technical stakeholders."
+    },
+    {
+      "name": "CFPB Consumer Complaint Analytics",
+      "summary": "Built a Python, SQL, SQLite, and dashboard workflow using real CFPB complaint data to monitor financial product trends, response outcomes, Texas complaint patterns, and responsible public-data interpretation."
     }
   ],
   "experience": [

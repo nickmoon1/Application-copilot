@@ -80,6 +80,22 @@ function selectStrengths(application: ApplicationDraft) {
     projectExamples.push("Tableau Dashboards: KPI, trend, and forecast dashboards for non-technical stakeholders.");
   }
 
+  if (
+    searchable.includes("financial") ||
+    searchable.includes("bank") ||
+    searchable.includes("credit") ||
+    searchable.includes("consumer") ||
+    searchable.includes("complaint") ||
+    searchable.includes("risk")
+  ) {
+    addEvidence(
+      "Built a CFPB consumer complaint analytics workflow using Python, SQL, SQLite, and dashboard metrics to analyze financial product trends, response outcomes, and Texas complaint patterns.",
+      evidenceUsed,
+      technicalFit,
+    );
+    projectExamples.push("CFPB Consumer Complaint Analytics: Python, SQL, SQLite, dashboard metrics, and responsible public-data interpretation.");
+  }
+
   if (searchable.includes("adjunct") || searchable.includes("professor") || searchable.includes("teaching")) {
     addEvidence("Taught Python fundamentals and mentored students on applied analytics and chatbot projects.", evidenceUsed, technicalFit);
   }
@@ -153,6 +169,10 @@ function getApprovedKeywordMap() {
     "kpi": "KPI Reporting",
     "kpis": "KPI Reporting",
     "powerbi": "Power BI",
+    "sqlite": "SQLite",
+    "financial analytics": "Financial Analytics",
+    "public data": "Public Data Analysis",
+    "public dataset": "Public Data Analysis",
   };
 
   for (const [alias, skill] of Object.entries(aliases)) {
@@ -199,6 +219,10 @@ function getCandidateKeywords() {
     "CCAR",
     "CECL",
     "SR 11-7",
+    "CFPB",
+    "Consumer complaints",
+    "Public data",
+    "Financial analytics",
   ].map((keyword) => ({
     label: keyword,
     normalized: normalizeKeywordText(keyword),
@@ -491,6 +515,26 @@ function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<t
 
 function getPortfolioCaseStudy(application: ApplicationDraft) {
   const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+
+  if (
+    searchable.includes("financial") ||
+    searchable.includes("bank") ||
+    searchable.includes("credit") ||
+    searchable.includes("consumer") ||
+    searchable.includes("complaint") ||
+    searchable.includes("risk")
+  ) {
+    return {
+      businessQuestion:
+        "Which financial products, issues, and response patterns should a financial services team monitor first?",
+      method:
+        "Processed real CFPB complaint data with Python, SQL, and SQLite, filtered financial product categories, and generated dashboard metrics for product, issue, state, and response patterns.",
+      impact:
+        "Created a responsible monitoring workflow that separates useful complaint signals from overclaiming by documenting dataset limits and regional context.",
+      coverLetterExample:
+        "my CFPB consumer complaint analytics project, where I used Python, SQL, SQLite, and dashboard metrics to analyze financial product trends, response outcomes, and Texas complaint patterns while clearly documenting data limitations.",
+    };
+  }
 
   if (searchable.includes("nlp") || searchable.includes("speech") || searchable.includes("voice") || searchable.includes("genai")) {
     return {

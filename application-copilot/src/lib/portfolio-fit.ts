@@ -48,6 +48,16 @@ const portfolioAnchors: PortfolioAnchor[] = [
     weight: 9,
   },
   {
+    label: "Financial services complaint analytics",
+    patterns: ["financial", "banking", "consumer", "complaint", "cfpb", "credit", "debt", "mortgage", "risk"],
+    weight: 10,
+  },
+  {
+    label: "Public data and responsible interpretation",
+    patterns: ["public data", "public dataset", "regulatory", "consumer protection", "representative", "limitations"],
+    weight: 7,
+  },
+  {
     label: "Operational data and reliability",
     patterns: ["pipeline", "linux", "operational", "sensor", "reliability", "troubleshooting"],
     weight: 8,
