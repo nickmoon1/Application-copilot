@@ -114,6 +114,17 @@ type ApplicationPacket = {
   files: Record<string, string>;
 };
 
+type JobUrlAnalysis = {
+  company: string;
+  keywords: string[];
+  location: string;
+  locationReadiness: string;
+  role: string;
+  source: string;
+  tailoringNotes: string;
+  warnings: string[];
+};
+
 function statusClass(status: string) {
   if (status === "Ready") return "ready";
   if (status === "Needs Edit") return "warn";
@@ -157,6 +168,22 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function appendAnalysisToNotes(notes: string, analysisNotes: string) {
+  if (!analysisNotes.trim()) return notes;
+
+  if (notes.includes("Job URL analysis:")) {
+    return notes;
+  }
+
+  return [notes, analysisNotes].filter(Boolean).join("\n\n");
+}
+
+function shouldReplaceGenericRole(currentRole: string, analyzedRole: string) {
+  const normalized = currentRole.trim().toLowerCase();
+
+  return Boolean(analyzedRole.trim()) && (normalized === "data analyst" || normalized === "senior data analyst");
+}
+
 type DashboardClientProps = {
   initialCreatePrError: string | null;
   initialCreatedPrNumber: string | null;
@@ -194,10 +221,13 @@ export default function DashboardClient({
   const [trackedPullNumber, setTrackedPullNumber] = useState(1);
   const [approvalStatus, setApprovalStatus] = useState<string | null>(null);
   const [isCheckingApproval, setIsCheckingApproval] = useState(false);
+  const [isAnalyzingJobUrl, setIsAnalyzingJobUrl] = useState(false);
   const [isCreatingPr, setIsCreatingPr] = useState(false);
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [createPrError, setCreatePrError] = useState<string | null>(initialCreatePrError);
+  const [jobAnalysis, setJobAnalysis] = useState<JobUrlAnalysis | null>(null);
+  const [jobAnalysisError, setJobAnalysisError] = useState<string | null>(null);
   const lastDiscoveryAt = initialDiscoveryAt;
   const discoveredJobs = initialDiscoveredJobs;
   const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
@@ -339,6 +369,45 @@ export default function DashboardClient({
       setSelectedApplicationId(data.application.id);
     } catch (error) {
       setCreatePrError(error instanceof Error ? error.message : "Unable to create pull request");
+    }
+  }
+
+  async function analyzeManualJobUrl() {
+    setIsAnalyzingJobUrl(true);
+    setJobAnalysis(null);
+    setJobAnalysisError(null);
+
+    try {
+      const response = await fetch("/api/jobs/analyze-url", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          jobUrl: jobDraft.jobUrl,
+        }),
+      });
+      const data = await response.json();
+
+      if (!response.ok || !data.ok) {
+        throw new Error(data.error ?? "Unable to analyze job URL");
+      }
+
+      const analysis = data.analysis as JobUrlAnalysis;
+
+      setJobAnalysis(analysis);
+      setJobDraft((current) => ({
+        ...current,
+        company: current.company || analysis.company,
+        location: current.location || analysis.location || current.location,
+        notes: appendAnalysisToNotes(current.notes, analysis.tailoringNotes),
+        role: shouldReplaceGenericRole(current.role, analysis.role) ? analysis.role : current.role,
+        source: current.source === "Manual entry" && analysis.source ? analysis.source : current.source,
+      }));
+    } catch (error) {
+      setJobAnalysisError(error instanceof Error ? error.message : "Unable to analyze job URL");
+    } finally {
+      setIsAnalyzingJobUrl(false);
     }
   }
 
@@ -675,7 +744,26 @@ export default function DashboardClient({
             <button className="primary" disabled={isCreatingPr} form="manual-intake-form" type="submit">
               {isCreatingPr ? "Creating PR" : "Create Application PR"}
             </button>
+            <button className="secondary" disabled={isAnalyzingJobUrl || !jobDraft.jobUrl.trim()} onClick={analyzeManualJobUrl} type="button">
+              {isAnalyzingJobUrl ? "Checking URL" : "Analyze Job URL"}
+            </button>
           </div>
+
+          {jobAnalysisError && (
+            <div className="form-alert error" role="alert">
+              <strong>Could not analyze job URL.</strong>
+              <span>{jobAnalysisError}</span>
+            </div>
+          )}
+
+          {jobAnalysis && (
+            <div className="form-alert success">
+              <strong>Job URL analyzed.</strong>
+              <span>{jobAnalysis.keywords.length > 0 ? `Detected: ${jobAnalysis.keywords.slice(0, 10).join(", ")}` : "No strong keywords detected."}</span>
+              <span>{jobAnalysis.locationReadiness}</span>
+              {jobAnalysis.warnings.length > 0 && <span>{jobAnalysis.warnings.join(" ")}</span>}
+            </div>
+          )}
 
           {createPrError && (
             <div className="form-alert error" role="alert">

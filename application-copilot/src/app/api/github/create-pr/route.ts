@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
 import { generateApplicationPacket } from "@/lib/application-packet";
 import { getInstallationOctokit, requireGitHubConfig } from "@/lib/github";
+import { analyzeJobUrl, type JobUrlAnalysis } from "@/lib/job-url-analysis";
 
 type JobDraftRequest = {
   company?: string;
@@ -17,7 +18,7 @@ export async function POST(request: Request) {
   try {
     const config = requireGitHubConfig();
     const octokit = getInstallationOctokit();
-    const application = await parseApplicationRequest(request);
+    const application = await enrichApplicationWithJobUrlAnalysis(await parseApplicationRequest(request));
     const duplicateApplication = await findDuplicateApplication(application);
 
     if (duplicateApplication && isBlockingDuplicateStatus(duplicateApplication.status)) {
@@ -232,6 +233,64 @@ async function parseApplicationRequest(request: Request) {
     notes,
     createdAt: new Date().toISOString(),
   };
+}
+
+async function enrichApplicationWithJobUrlAnalysis(application: Awaited<ReturnType<typeof parseApplicationRequest>>) {
+  if (!application.jobUrl.trim()) {
+    return application;
+  }
+
+  try {
+    const analysis = await analyzeJobUrl(application.jobUrl);
+
+    return {
+      ...application,
+      company: shouldUseAnalyzedCompany(application.company) && analysis.company ? analysis.company : application.company,
+      location: shouldUseAnalyzedLocation(application.location, analysis.location) ? analysis.location : application.location,
+      notes: appendJobAnalysisNotes(application.notes, analysis),
+      role: shouldUseAnalyzedRole(application.role) && analysis.role ? analysis.role : application.role,
+      source: shouldUseAnalyzedSource(application.source) && analysis.source ? analysis.source : application.source,
+    };
+  } catch (error) {
+    const warning = error instanceof Error ? error.message : "Unable to analyze job URL.";
+
+    return {
+      ...application,
+      notes: appendAnalysisWarning(application.notes, warning),
+    };
+  }
+}
+
+function shouldUseAnalyzedCompany(company: string) {
+  return company.trim().length === 0;
+}
+
+function shouldUseAnalyzedLocation(location: string, analyzedLocation: string) {
+  if (!analyzedLocation.trim()) return false;
+  if (!location.trim()) return true;
+
+  return location.trim().toLowerCase() === "dallas, tx" && analyzedLocation.trim().toLowerCase() !== "dallas, tx";
+}
+
+function shouldUseAnalyzedRole(role: string) {
+  const normalized = role.trim().toLowerCase();
+
+  return normalized === "data analyst" || normalized === "senior data analyst";
+}
+
+function shouldUseAnalyzedSource(source: string) {
+  return source.trim().toLowerCase() === "manual entry";
+}
+
+function appendJobAnalysisNotes(notes: string, analysis: JobUrlAnalysis) {
+  return [notes, analysis.tailoringNotes].filter(Boolean).join("\n\n");
+}
+
+function appendAnalysisWarning(notes: string, warning: string) {
+  return [
+    notes,
+    `Job URL analysis:\n- Analyzer warnings: ${warning}\n- Manual review needed: copy the most important responsibilities, requirements, and tools into Notes before approving the packet.`,
+  ].filter(Boolean).join("\n\n");
 }
 
 async function findDuplicateApplication(application: Awaited<ReturnType<typeof parseApplicationRequest>>) {

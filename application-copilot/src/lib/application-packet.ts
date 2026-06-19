@@ -18,6 +18,7 @@ export function generateApplicationPacket(application: ApplicationDraft) {
   const keywordGate = buildKeywordGate(application);
   const resumeTailoring = buildResumeTailoring(application, strengths, keywordGate);
   const questionsToVerify = getQuestionsToVerify(application);
+  const locationReadiness = getLocationReadiness(application);
   const answerDrafts = {
     whyThisRole: [
       `I am interested in the ${application.role} role at ${application.company} because it matches my work across data analysis, Python, SQL, predictive modeling, and stakeholder-facing insights.`,
@@ -26,7 +27,7 @@ export function generateApplicationPacket(application: ApplicationDraft) {
     whyThisCompany:
       `This role appears to connect technical data work with practical business outcomes, which fits my background turning cleaned data, models, dashboards, and system findings into decisions teams can use.`,
     location:
-      `I am based in ${profile.location} and am focused on Dallas-area opportunities, including ${application.location}.`,
+      locationReadiness.answer,
     technicalFit: strengths.technicalFit,
     projectExamples: strengths.projectExamples,
     collaboration:
@@ -43,9 +44,9 @@ export function generateApplicationPacket(application: ApplicationDraft) {
   return {
     answers: JSON.stringify(answerDrafts, null, 2),
     coverLetter: buildCoverLetter(application, strengths),
-    checklist: buildChecklist(application, questionsToVerify),
+    checklist: buildChecklist(application, questionsToVerify, locationReadiness),
     keywordReport: buildKeywordReport(application, keywordGate),
-    reviewNotes: buildReviewNotes(application, strengths, questionsToVerify, keywordGate),
+    reviewNotes: buildReviewNotes(application, strengths, questionsToVerify, keywordGate, locationReadiness),
     tailoredResume: resumeTailoring,
     tailoredResumeDocx: generateResumeDocx(resumeTailoring),
     answerStyle: JSON.stringify(answerStyle, null, 2),
@@ -242,6 +243,72 @@ function normalizeKeywordText(value: string) {
     .trim();
 }
 
+function getLocationReadiness(application: ApplicationDraft) {
+  const location = application.location || "";
+  const searchable = `${application.location} ${application.notes}`.toLowerCase();
+
+  if (searchable.includes("remote")) {
+    return {
+      answer:
+        `I am based in ${profile.location} and am comfortable supporting remote work with clear communication, availability, and collaboration expectations.`,
+      coverLetter:
+        `I am based in ${profile.location} and am comfortable supporting a remote role with clear communication and availability expectations.`,
+      resumeLine: "",
+      reviewQuestion: "Confirm remote schedule, time zone expectations, and communication requirements.",
+      reviewRequired: true,
+      summary: "Remote role: candidate is Dallas-based and open to remote work with clear availability expectations.",
+    };
+  }
+
+  if (isDfwLocation(searchable)) {
+    return {
+      answer:
+        `I am based in ${profile.location} and am focused on Dallas-Fort Worth opportunities, including ${location || "this location"}.`,
+      coverLetter: "",
+      resumeLine: "",
+      reviewQuestion: "Confirm commute, hybrid/on-site days, and office location.",
+      reviewRequired: false,
+      summary: "Dallas-Fort Worth role: location aligns with current Dallas-area search.",
+    };
+  }
+
+  if (isTexasLocation(searchable)) {
+    return {
+      answer:
+        `I am currently based in ${profile.location} and understand this role is based in ${location}. I am open to discussing relocation, regular commute, or travel arrangements for the right opportunity.`,
+      coverLetter:
+        `I am currently based in ${profile.location} and understand this role is based in ${location}. I am open to discussing relocation, regular commute, or travel arrangements if selected.`,
+      resumeLine: `Dallas, TX | Open to relocation/commute within Texas for the right role`,
+      reviewQuestion: `Confirm commute, relocation, or travel expectations for ${location}.`,
+      reviewRequired: true,
+      summary: `Texas outside DFW: candidate is Dallas-based and open to discussing relocation, regular commute, or travel arrangements for ${location}.`,
+    };
+  }
+
+  return {
+    answer:
+      `I am currently based in ${profile.location}. I would want to confirm relocation, travel, or remote-work expectations before final submission for ${location || "this role"}.`,
+    coverLetter:
+      `I am currently based in ${profile.location} and would be glad to discuss relocation, travel, or remote-work expectations for this opportunity.`,
+    resumeLine: "",
+    reviewQuestion: `Confirm whether ${location || "this location"} is realistic for relocation, travel, or remote work before submitting.`,
+    reviewRequired: true,
+    summary: `Outside preferred search area: review relocation, travel, or remote-work fit before submission.`,
+  };
+}
+
+function isDfwLocation(value: string) {
+  return ["dallas", "irving", "plano", "richardson", "arlington", "frisco", "fort worth", "farmers branch"].some((city) =>
+    value.includes(city),
+  );
+}
+
+function isTexasLocation(value: string) {
+  return ["tx", "texas", "waco", "austin", "houston", "san antonio", "mckinney", "denton", "garland"].some((location) =>
+    value.includes(location),
+  );
+}
+
 function getQuestionsToVerify(application: ApplicationDraft) {
   const questions = [
     "Confirm the role is still live before final submission.",
@@ -249,6 +316,11 @@ function getQuestionsToVerify(application: ApplicationDraft) {
     "Confirm work location, hybrid/on-site expectations, and commute fit.",
   ];
   const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const locationReadiness = getLocationReadiness(application);
+
+  if (locationReadiness.reviewRequired) {
+    questions.push(locationReadiness.reviewQuestion);
+  }
 
   if (searchable.includes("engineer") || searchable.includes("big data")) {
     questions.push("Confirm depth required for production big-data tooling, cloud services, and distributed systems.");
@@ -267,6 +339,7 @@ function getQuestionsToVerify(application: ApplicationDraft) {
 
 function buildCoverLetter(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
   const portfolioCaseStudy = getPortfolioCaseStudy(application);
+  const locationReadiness = getLocationReadiness(application);
 
   return `# ${application.company} - ${application.role}
 
@@ -280,6 +353,8 @@ One relevant example is ${portfolioCaseStudy.coverLetterExample} Another is my f
 
 I would bring a practical mix of technical execution, business communication, and teaching/mentoring experience to this role.
 
+${locationReadiness.coverLetter}
+
 Thank you for your consideration.
 
 ${profile.name}
@@ -289,7 +364,11 @@ ${profile.links.portfolio}
 `;
 }
 
-function buildChecklist(application: ApplicationDraft, questionsToVerify: string[]) {
+function buildChecklist(
+  application: ApplicationDraft,
+  questionsToVerify: string[],
+  locationReadiness: ReturnType<typeof getLocationReadiness>,
+) {
   return `# Review Checklist
 
 - [ ] Confirm role, company, and location.
@@ -299,6 +378,7 @@ function buildChecklist(application: ApplicationDraft, questionsToVerify: string
 - [ ] Review generated answers for accuracy.
 - [ ] Review cover letter tone and examples.
 - [ ] Confirm no claims go beyond the resume/profile evidence.
+- [ ] Review location readiness statement for accuracy.
 - [ ] Approve this pull request before final submission.
 
 ## Questions To Verify
@@ -313,6 +393,7 @@ ${questionsToVerify.map((question) => `- [ ] ${question}`).join("\n")}
 - Source: ${application.source}
 - Job URL: ${application.jobUrl || "Not provided"}
 - Match score: ${application.matchScore}%
+- Location readiness: ${locationReadiness.summary}
 `;
 }
 
@@ -355,6 +436,7 @@ function buildReviewNotes(
   strengths: ReturnType<typeof selectStrengths>,
   questionsToVerify: string[],
   keywordGate: ReturnType<typeof buildKeywordGate>,
+  locationReadiness: ReturnType<typeof getLocationReadiness>,
 ) {
   return `# Transparent Review Notes
 
@@ -376,6 +458,7 @@ ${strengths.evidenceUsed.map((item) => `- ${item}`).join("\n")}
 - The cover letter emphasizes concrete resume evidence instead of unsupported claims.
 - Unverified tools are held back from resume claims unless they appear in the approved local profile.
 - The answer drafts are meant to be reviewed and edited before any employer form submission.
+- Location readiness is generated from the role location and must be confirmed before submission.
 
 ## Verify Before Submit
 
@@ -384,6 +467,10 @@ ${questionsToVerify.map((question) => `- ${question}`).join("\n")}
 ## User Notes
 
 ${application.notes || "No extra notes provided."}
+
+## Location Readiness
+
+${locationReadiness.summary}
 `;
 }
 
@@ -399,6 +486,7 @@ function buildResumeTailoring(
   const skillGroups = getResumeSkillGroups(matchedSkills);
   const targetAlignment = getTargetRoleAlignment(matchedSkills, strengths);
   const portfolioCaseStudy = getPortfolioCaseStudy(application);
+  const locationReadiness = getLocationReadiness(application);
 
   return `# Tailored Resume Draft - ${application.company} ${application.role}
 
@@ -451,6 +539,7 @@ ${profile.certifications.map((item) => `- ${item}`).join("\n")}
 
 - Portfolio: ${profile.links.portfolio}
 - GitHub: ${profile.links.github}
+${locationReadiness.resumeLine ? `- ${locationReadiness.resumeLine}` : ""}
 
 ## REVIEW NOTES
 
@@ -462,6 +551,7 @@ ${profile.certifications.map((item) => `- ${item}`).join("\n")}
 - Evidence emphasized: ${strengths.evidenceUsed.join(" ")}
 - Verified role keywords: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
 - Held-back role keywords: ${keywordGate.heldBackKeywords.join(", ") || "None"}
+- Location readiness: ${locationReadiness.summary}
 
 ## Guardrails
 
