@@ -253,6 +253,33 @@ h3 {
   background: #fff7ed;
 }
 
+.form-alert {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  font-size: 14px;
+}
+
+.form-alert.error {
+  border: 1px solid #efc4c4;
+  background: #fff1f1;
+  color: #7f1d1d;
+}
+
+.form-alert.success {
+  border: 1px solid #bfdfd0;
+  background: #effaf4;
+  color: #174e38;
+}
+
+.form-alert a {
+  color: var(--blue);
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
 .preferences div {
   min-height: 76px;
   padding: 16px 18px;
@@ -494,6 +521,16 @@ h3 {
 
 .inline-form {
   display: inline-flex;
+}
+
+.danger-button {
+  border-color: #efc4c4;
+  color: #8a1f1f;
+}
+
+.danger-button:hover:not(:disabled) {
+  border-color: #d66f6f;
+  background: #fff1f1;
 }
 
 .link-button {

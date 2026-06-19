@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     const application = await parseApplicationRequest(request);
     const duplicateApplication = await findDuplicateApplication(application);
 
-    if (duplicateApplication) {
+    if (duplicateApplication && isBlockingDuplicateStatus(duplicateApplication.status)) {
       return NextResponse.json(
         {
           ok: false,
@@ -250,6 +250,7 @@ async function findDuplicateApplication(application: Awaited<ReturnType<typeof p
     });
     const duplicateByUrl = applications
       .filter((item) => normalizeUrl(item.jobUrl) === normalizedJobUrl)
+      .filter((item) => isBlockingDuplicateStatus(item.status))
       .sort(compareDuplicatePriority)[0];
 
     if (duplicateByUrl) {
@@ -264,7 +265,7 @@ async function findDuplicateApplication(application: Awaited<ReturnType<typeof p
     },
   });
 
-  return applications.sort(compareDuplicatePriority)[0] ?? null;
+  return applications.filter((item) => isBlockingDuplicateStatus(item.status)).sort(compareDuplicatePriority)[0] ?? null;
 }
 
 function normalizeUrl(value: string) {
@@ -292,6 +293,10 @@ function getDuplicateStatusPriority(status: string) {
   if (status === "INVALID_JOB" || status === "NOT_APPLYING") return 1;
 
   return 0;
+}
+
+function isBlockingDuplicateStatus(status: string) {
+  return status !== "INVALID_JOB" && status !== "NOT_APPLYING";
 }
 
 function requireText(value: string | undefined, field: string) {

@@ -303,9 +303,11 @@ export default function DashboardClient({
   async function createApplicationPr() {
     setIsCreatingPr(true);
 
-    await createApplicationPrFromDraft(jobDraft);
-
-    setIsCreatingPr(false);
+    try {
+      await createApplicationPrFromDraft(jobDraft);
+    } finally {
+      setIsCreatingPr(false);
+    }
   }
 
   async function createApplicationPrFromDraft(draft: typeof initialJobDraft) {
@@ -671,6 +673,20 @@ export default function DashboardClient({
             </button>
           </div>
 
+          {createPrError && (
+            <div className="form-alert error" role="alert">
+              <strong>Manual PR was not created.</strong>
+              <span>{createPrError}</span>
+            </div>
+          )}
+
+          {prUrl && (
+            <div className="form-alert success">
+              <strong>Manual PR created.</strong>
+              <a href={prUrl} rel="noreferrer" target="_blank">{prUrl}</a>
+            </div>
+          )}
+
           <div className="intake-grid">
             <label>
               <span>Company</span>
@@ -790,11 +806,18 @@ export default function DashboardClient({
                           {isSubmittedStatus(application.status) || isTerminalInactiveStatus(application.status) ? (
                             <button className="secondary" disabled type="button">Closed</button>
                           ) : (
-                            <form action={`/applications/${application.id}/check-status`} className="inline-form" method="post">
-                              <button className="secondary" type="submit">
-                                Check Status
-                              </button>
-                            </form>
+                            <>
+                              <form action={`/applications/${application.id}/check-status`} className="inline-form" method="post">
+                                <button className="secondary" type="submit">
+                                  Check Status
+                                </button>
+                              </form>
+                              <form action={`/applications/${application.id}/invalid`} className="inline-form" method="post">
+                                <button className="ghost danger-button" type="submit">
+                                  Mark Invalid
+                                </button>
+                              </form>
+                            </>
                           )}
                         </div>
                       </article>
@@ -1112,14 +1135,15 @@ export default function DashboardClient({
                     {selectedApplicationSubmitted ? "Submitted" : isUpdatingSubmission ? "Saving" : "Mark Submitted"}
                   </button>
                 </form>
-                <button
-                  className="secondary"
-                  disabled={selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}
-                  onClick={markSelectedApplicationInvalid}
-                  type="button"
-                >
-                  {selectedApplicationInactive ? "Invalid" : "Mark Invalid"}
-                </button>
+                <form action={`/applications/${selectedApplication.id}/invalid`} className="inline-form" method="post">
+                  <button
+                    className="secondary danger-button"
+                    disabled={selectedApplicationInactive || selectedApplicationSubmitted || isUpdatingSubmission}
+                    type="submit"
+                  >
+                    {selectedApplicationInactive ? "Invalid" : "Mark Invalid"}
+                  </button>
+                </form>
               </div>
             </section>
 
