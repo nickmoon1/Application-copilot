@@ -9,7 +9,10 @@ export const dynamic = "force-dynamic";
 type PageProps = {
   searchParams?: Promise<{
     application?: string;
+    createdPr?: string;
     discover?: string;
+    duplicate?: string;
+    error?: string;
   }>;
 };
 
@@ -60,6 +63,8 @@ export default async function Home({ searchParams }: PageProps) {
       initialArchivedDiscoveredJobs={archivedDiscoveredCandidates}
       initialDiscoveredJobs={activeDiscoveredCandidates}
       initialDiscoveryAt={discovery?.searchedAt ?? null}
+      initialCreatePrError={params?.error ?? (params?.duplicate ? `Application already exists as PR #${params.duplicate}.` : null)}
+      initialCreatedPrNumber={params?.createdPr ?? null}
       initialSelectedApplicationId={params?.application ?? null}
     />
   );

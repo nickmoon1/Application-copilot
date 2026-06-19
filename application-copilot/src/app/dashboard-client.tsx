@@ -158,6 +158,8 @@ function formatDate(value: string) {
 }
 
 type DashboardClientProps = {
+  initialCreatePrError: string | null;
+  initialCreatedPrNumber: string | null;
   initialApplications: SavedApplication[];
   initialArchivedDiscoveredJobs: DiscoveredJob[];
   initialDiscoveredJobs: DiscoveredJob[];
@@ -166,6 +168,8 @@ type DashboardClientProps = {
 };
 
 export default function DashboardClient({
+  initialCreatePrError,
+  initialCreatedPrNumber,
   initialApplications,
   initialArchivedDiscoveredJobs,
   initialDiscoveredJobs,
@@ -193,7 +197,7 @@ export default function DashboardClient({
   const [isCreatingPr, setIsCreatingPr] = useState(false);
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
-  const [createPrError, setCreatePrError] = useState<string | null>(null);
+  const [createPrError, setCreatePrError] = useState<string | null>(initialCreatePrError);
   const lastDiscoveryAt = initialDiscoveryAt;
   const discoveredJobs = initialDiscoveredJobs;
   const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
@@ -668,7 +672,7 @@ export default function DashboardClient({
               <p className="eyebrow">Manual Intake</p>
               <h2>Create Application PR</h2>
             </div>
-            <button className="primary" disabled={isCreatingPr} onClick={createApplicationPr} type="button">
+            <button className="primary" disabled={isCreatingPr} form="manual-intake-form" type="submit">
               {isCreatingPr ? "Creating PR" : "Create Application PR"}
             </button>
           </div>
@@ -680,17 +684,22 @@ export default function DashboardClient({
             </div>
           )}
 
-          {prUrl && (
+          {(prUrl || initialCreatedPrNumber) && (
             <div className="form-alert success">
               <strong>Manual PR created.</strong>
-              <a href={prUrl} rel="noreferrer" target="_blank">{prUrl}</a>
+              {prUrl ? (
+                <a href={prUrl} rel="noreferrer" target="_blank">{prUrl}</a>
+              ) : (
+                <span>PR #{initialCreatedPrNumber} was created. Check the GitHub PR tracker below.</span>
+              )}
             </div>
           )}
 
-          <div className="intake-grid">
+          <form action="/github/create-pr" className="intake-grid" id="manual-intake-form" method="post">
             <label>
               <span>Company</span>
               <input
+                name="company"
                 onChange={(event) => updateJobDraft("company", event.target.value)}
                 placeholder="Capital One"
                 type="text"
@@ -700,6 +709,7 @@ export default function DashboardClient({
             <label>
               <span>Role</span>
               <input
+                name="role"
                 onChange={(event) => updateJobDraft("role", event.target.value)}
                 placeholder="Senior Data Analyst"
                 type="text"
@@ -709,6 +719,7 @@ export default function DashboardClient({
             <label>
               <span>Location</span>
               <input
+                name="location"
                 onChange={(event) => updateJobDraft("location", event.target.value)}
                 placeholder="Plano, TX"
                 type="text"
@@ -718,6 +729,7 @@ export default function DashboardClient({
             <label>
               <span>Source</span>
               <input
+                name="source"
                 onChange={(event) => updateJobDraft("source", event.target.value)}
                 placeholder="Company board"
                 type="text"
@@ -729,6 +741,7 @@ export default function DashboardClient({
               <input
                 max="100"
                 min="0"
+                name="matchScore"
                 onChange={(event) => updateJobDraft("matchScore", event.target.value)}
                 type="number"
                 value={jobDraft.matchScore}
@@ -737,6 +750,7 @@ export default function DashboardClient({
             <label className="wide">
               <span>Job URL</span>
               <input
+                name="jobUrl"
                 onChange={(event) => updateJobDraft("jobUrl", event.target.value)}
                 placeholder="https://..."
                 type="url"
@@ -746,13 +760,14 @@ export default function DashboardClient({
             <label className="wide">
               <span>Notes</span>
               <textarea
+                name="notes"
                 onChange={(event) => updateJobDraft("notes", event.target.value)}
                 placeholder="What should the cover letter or answers emphasize?"
                 rows={3}
                 value={jobDraft.notes}
               />
             </label>
-          </div>
+          </form>
         </section>
 
         <section className="applications-panel" id="github-reviews" aria-label="Recent applications">
