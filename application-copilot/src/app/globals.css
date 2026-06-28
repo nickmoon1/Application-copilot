@@ -412,12 +412,14 @@ h3 {
   gap: 12px;
 }
 
-.intake-grid label {
+.intake-grid label,
+.intake-grid .form-field {
   display: grid;
   gap: 6px;
 }
 
-.intake-grid label.wide {
+.intake-grid label.wide,
+.intake-grid .form-field.wide {
   grid-column: span 5;
 }
 
@@ -442,6 +444,105 @@ h3 {
 .intake-grid textarea {
   resize: vertical;
   line-height: 1.45;
+}
+
+.job-url-input-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+}
+
+.job-url-input-row button {
+  white-space: nowrap;
+}
+
+.url-analysis-status {
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.url-analysis-status.success {
+  color: var(--green);
+}
+
+.url-analysis-status.warning {
+  color: #8a5b00;
+}
+
+.url-analysis-status.error {
+  color: var(--red);
+}
+
+.analysis-result-card {
+  margin-top: 14px;
+  display: grid;
+  gap: 14px;
+  border: 1px solid #bfdfd0;
+  border-radius: 8px;
+  padding: 16px;
+  background: #f4fbf7;
+}
+
+.analysis-result-card.warning {
+  border-color: #e5c56f;
+  background: #fff9e8;
+}
+
+.analysis-result-card p {
+  margin: 6px 0 0;
+}
+
+.analysis-warning {
+  border: 1px solid #ead58a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fffdf4;
+  color: #745000;
+  font-weight: 700;
+}
+
+.analysis-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.analysis-grid > div,
+.analysis-list {
+  border: 1px solid #d8eadf;
+  border-radius: 8px;
+  padding: 12px;
+  background: #ffffff;
+}
+
+.analysis-grid .wide {
+  grid-column: span 2;
+}
+
+.analysis-grid span,
+.analysis-list span {
+  display: block;
+  margin-bottom: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.analysis-grid strong {
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.analysis-list ul {
+  margin: 8px 0 0;
+  padding-left: 18px;
+}
+
+.analysis-list li {
+  margin: 6px 0;
 }
 
 .applications-table {
@@ -911,7 +1012,17 @@ dd {
     grid-template-columns: 1fr;
   }
 
-  .intake-grid label.wide {
+  .intake-grid label.wide,
+  .intake-grid .form-field.wide {
+    grid-column: span 1;
+  }
+
+  .job-url-input-row,
+  .analysis-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .analysis-grid .wide {
     grid-column: span 1;
   }
 

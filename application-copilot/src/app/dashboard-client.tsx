@@ -119,9 +119,14 @@ type JobUrlAnalysis = {
   keywords: string[];
   location: string;
   locationReadiness: string;
+  requirements: string[];
+  responsibilities: string[];
   role: string;
   source: string;
+  summary: string;
   tailoringNotes: string;
+  title: string;
+  url: string;
   warnings: string[];
 };
 
@@ -171,17 +176,63 @@ function formatDate(value: string) {
 function appendAnalysisToNotes(notes: string, analysisNotes: string) {
   if (!analysisNotes.trim()) return notes;
 
-  if (notes.includes("Job URL analysis:")) {
-    return notes;
-  }
+  return [stripGeneratedAnalysis(notes), analysisNotes].filter(Boolean).join("\n\n");
+}
 
-  return [notes, analysisNotes].filter(Boolean).join("\n\n");
+function stripGeneratedAnalysis(notes: string) {
+  return notes.replace(/\n*Job URL analysis:[\s\S]*$/i, "").trim();
 }
 
 function shouldReplaceGenericRole(currentRole: string, analyzedRole: string) {
   const normalized = currentRole.trim().toLowerCase();
 
-  return Boolean(analyzedRole.trim()) && (normalized === "data analyst" || normalized === "senior data analyst");
+  return (
+    Boolean(analyzedRole.trim()) &&
+    (normalized === "data analyst" ||
+      normalized === "senior data analyst" ||
+      normalized === "job search" ||
+      normalized === "career search" ||
+      normalized === "job detail")
+  );
+}
+
+function shouldReplaceGenericCompany(currentCompany: string, analyzedCompany: string) {
+  const normalized = currentCompany.trim().toLowerCase();
+
+  return Boolean(analyzedCompany.trim()) && (!normalized || normalized === "aa224" || normalized.includes("taleo"));
+}
+
+function shouldReplaceGenericSource(currentSource: string, analyzedSource: string) {
+  const normalized = currentSource.trim().toLowerCase();
+
+  return Boolean(analyzedSource.trim()) && (!normalized || normalized === "manual entry" || normalized.includes("taleo"));
+}
+
+function shouldReplaceDefaultLocation(currentLocation: string, analyzedLocation: string) {
+  const normalized = currentLocation.trim().toLowerCase();
+
+  return Boolean(analyzedLocation.trim()) && (!normalized || normalized === "dallas, tx");
+}
+
+function isWeakJobAnalysis(analysis: JobUrlAnalysis) {
+  const genericRole = ["job search", "career search", "job detail"].includes(analysis.role.trim().toLowerCase());
+
+  return genericRole || analysis.keywords.length === 0 || analysis.requirements.length === 0 || analysis.warnings.length > 0;
+}
+
+function getManualIntakeFormDraft() {
+  const form = document.querySelector<HTMLFormElement>("#manual-intake-form");
+  const formData = form ? new FormData(form) : null;
+
+  return {
+    company: String(formData?.get("company") ?? ""),
+    role: String(formData?.get("role") ?? ""),
+    location: String(formData?.get("location") ?? ""),
+    source: String(formData?.get("source") ?? ""),
+    jobUrl: String(formData?.get("jobUrl") ?? ""),
+    matchScore: String(formData?.get("matchScore") ?? ""),
+    notes: String(formData?.get("notes") ?? ""),
+  };
 }
 
 type DashboardClientProps = {
@@ -191,6 +242,9 @@ type DashboardClientProps = {
   initialArchivedDiscoveredJobs: DiscoveredJob[];
   initialDiscoveredJobs: DiscoveredJob[];
   initialDiscoveryAt: string | null;
+  initialJobAnalysis: JobUrlAnalysis | null;
+  initialJobAnalysisError: string | null;
+  initialJobDraft: typeof initialJobDraft;
   initialSelectedApplicationId: string | null;
 };
 
@@ -201,6 +255,9 @@ export default function DashboardClient({
   initialArchivedDiscoveredJobs,
   initialDiscoveredJobs,
   initialDiscoveryAt,
+  initialJobAnalysis,
+  initialJobAnalysisError,
+  initialJobDraft,
   initialSelectedApplicationId,
 }: DashboardClientProps) {
   const [activeNav, setActiveNav] = useState("Queue");
@@ -226,8 +283,9 @@ export default function DashboardClient({
   const [isUpdatingSubmission, setIsUpdatingSubmission] = useState(false);
   const [copiedLabel, setCopiedLabel] = useState<string | null>(null);
   const [createPrError, setCreatePrError] = useState<string | null>(initialCreatePrError);
-  const [jobAnalysis, setJobAnalysis] = useState<JobUrlAnalysis | null>(null);
-  const [jobAnalysisError, setJobAnalysisError] = useState<string | null>(null);
+  const [jobAnalysis, setJobAnalysis] = useState<JobUrlAnalysis | null>(initialJobAnalysis);
+  const [jobAnalysisError, setJobAnalysisError] = useState<string | null>(initialJobAnalysisError);
+  const jobAnalysisIsWeak = jobAnalysis ? isWeakJobAnalysis(jobAnalysis) : false;
   const lastDiscoveryAt = initialDiscoveryAt;
   const discoveredJobs = initialDiscoveredJobs;
   const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
@@ -373,6 +431,8 @@ export default function DashboardClient({
   }
 
   async function analyzeManualJobUrl() {
+    const currentDraft = getManualIntakeFormDraft();
+
     setIsAnalyzingJobUrl(true);
     setJobAnalysis(null);
     setJobAnalysisError(null);
@@ -384,7 +444,7 @@ export default function DashboardClient({
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          jobUrl: jobDraft.jobUrl,
+          jobUrl: currentDraft.jobUrl,
         }),
       });
       const data = await response.json();
@@ -398,11 +458,12 @@ export default function DashboardClient({
       setJobAnalysis(analysis);
       setJobDraft((current) => ({
         ...current,
-        company: current.company || analysis.company,
-        location: current.location || analysis.location || current.location,
-        notes: appendAnalysisToNotes(current.notes, analysis.tailoringNotes),
-        role: shouldReplaceGenericRole(current.role, analysis.role) ? analysis.role : current.role,
-        source: current.source === "Manual entry" && analysis.source ? analysis.source : current.source,
+        ...currentDraft,
+        company: shouldReplaceGenericCompany(currentDraft.company, analysis.company) ? analysis.company : currentDraft.company,
+        location: shouldReplaceDefaultLocation(currentDraft.location, analysis.location) ? analysis.location : currentDraft.location || current.location,
+        notes: appendAnalysisToNotes(currentDraft.notes, analysis.tailoringNotes),
+        role: shouldReplaceGenericRole(currentDraft.role || current.role, analysis.role) ? analysis.role : currentDraft.role || current.role,
+        source: shouldReplaceGenericSource(currentDraft.source, analysis.source) ? analysis.source : currentDraft.source || current.source,
       }));
     } catch (error) {
       setJobAnalysisError(error instanceof Error ? error.message : "Unable to analyze job URL");
@@ -744,9 +805,6 @@ export default function DashboardClient({
             <button className="primary" disabled={isCreatingPr} form="manual-intake-form" type="submit">
               {isCreatingPr ? "Creating PR" : "Create Application PR"}
             </button>
-            <button className="secondary" disabled={isAnalyzingJobUrl || !jobDraft.jobUrl.trim()} onClick={analyzeManualJobUrl} type="button">
-              {isAnalyzingJobUrl ? "Checking URL" : "Analyze Job URL"}
-            </button>
           </div>
 
           {jobAnalysisError && (
@@ -757,11 +815,42 @@ export default function DashboardClient({
           )}
 
           {jobAnalysis && (
-            <div className="form-alert success">
-              <strong>Job URL analyzed.</strong>
-              <span>{jobAnalysis.keywords.length > 0 ? `Detected: ${jobAnalysis.keywords.slice(0, 10).join(", ")}` : "No strong keywords detected."}</span>
-              <span>{jobAnalysis.locationReadiness}</span>
-              {jobAnalysis.warnings.length > 0 && <span>{jobAnalysis.warnings.join(" ")}</span>}
+            <div className={`analysis-result-card${jobAnalysisIsWeak ? " warning" : ""}`}>
+              <div>
+                <p className="eyebrow">Job URL Analysis</p>
+                <h3>{jobAnalysis.role || "Role detected"}{jobAnalysis.company ? ` at ${jobAnalysis.company}` : ""}</h3>
+                <p>{jobAnalysis.summary}</p>
+              </div>
+              {jobAnalysisIsWeak && (
+                <p className="analysis-warning">
+                  This looks like a weak or incomplete scrape. For Taleo jobs, open the exact posting and copy the full address after the page loads.
+                </p>
+              )}
+              <div className="analysis-grid">
+                <div>
+                  <span>Location</span>
+                  <strong>{jobAnalysis.location || "Review manually"}</strong>
+                </div>
+                <div>
+                  <span>Readiness</span>
+                  <strong>{jobAnalysis.locationReadiness}</strong>
+                </div>
+                <div className="wide">
+                  <span>Keywords</span>
+                  <strong>{jobAnalysis.keywords.length > 0 ? jobAnalysis.keywords.slice(0, 12).join(", ") : "No strong keywords detected"}</strong>
+                </div>
+              </div>
+              {jobAnalysis.requirements.length > 0 && (
+                <div className="analysis-list">
+                  <span>Resume tailoring signals</span>
+                  <ul>
+                    {jobAnalysis.requirements.slice(0, 3).map((requirement) => (
+                      <li key={requirement}>{requirement}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {jobAnalysis.warnings.length > 0 && <p className="validation-note">{jobAnalysis.warnings.join(" ")}</p>}
             </div>
           )}
 
@@ -835,16 +924,38 @@ export default function DashboardClient({
                 value={jobDraft.matchScore}
               />
             </label>
-            <label className="wide">
+            <div className="form-field wide">
               <span>Job URL</span>
-              <input
-                name="jobUrl"
-                onChange={(event) => updateJobDraft("jobUrl", event.target.value)}
-                placeholder="https://..."
-                type="url"
-                value={jobDraft.jobUrl}
-              />
-            </label>
+              <div className="job-url-input-row">
+                <input
+                  name="jobUrl"
+                  onChange={(event) => updateJobDraft("jobUrl", event.target.value)}
+                  placeholder="https://..."
+                  type="url"
+                  value={jobDraft.jobUrl}
+                />
+                <button
+                  className="secondary"
+                  disabled={isAnalyzingJobUrl}
+                  formAction="/#manual-intake"
+                  formMethod="get"
+                  name="analyzeJobUrl"
+                  type="submit"
+                  value="1"
+                >
+                  {isAnalyzingJobUrl ? "Checking URL" : "Analyze Job URL"}
+                </button>
+              </div>
+              {isAnalyzingJobUrl && <span className="url-analysis-status">Analyzing this job URL...</span>}
+              {jobAnalysisError && <span className="url-analysis-status error">Could not analyze this URL: {jobAnalysisError}</span>}
+              {jobAnalysis && (
+                <span className={`url-analysis-status ${jobAnalysisIsWeak ? "warning" : "success"}`}>
+                  {jobAnalysisIsWeak
+                    ? "Analysis returned limited job details. Try the full posting URL before creating the PR."
+                    : `Analysis ready: ${jobAnalysis.role} at ${jobAnalysis.company || jobAnalysis.source}.`}
+                </span>
+              )}
+            </div>
             <label className="wide">
               <span>Notes</span>
               <textarea

@@ -69,8 +69,8 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
   ]);
   const company = pickFirst([
     getJsonLdValue(jsonLd, ["hiringOrganization.name", "organization.name", "company"]),
-    getMetaContent(html, "og:site_name"),
     inferCompanyFromText(text),
+    getMetaContent(html, "og:site_name"),
     inferCompanyFromHost(hostname),
   ]);
   const role = cleanRole(title, company) || title || "";
@@ -330,9 +330,21 @@ function inferRoleFromText(text: string) {
 }
 
 function inferCompanyFromText(text: string) {
-  const match = text.match(/\bAbout the Role\s+([A-Z][A-Za-z0-9&.,' -]{2,80}?)\s+is seeking\b/);
+  const patterns = [
+    /\bAbout the Role\s+([A-Z][A-Za-z0-9&.,' -]{2,80}?)\s+is seeking\b/,
+    /\b([A-Z][A-Za-z0-9&.,' -]{2,80}?)\s+is seeking\b/,
+    /\b([A-Z][A-Za-z0-9&.,' -]{2,80}?)\s+is an Equal Opportunity Employer\b/,
+  ];
 
-  return match?.[1] ? cleanText(match[1]) : "";
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+
+    if (match?.[1]) {
+      return cleanText(match[1]);
+    }
+  }
+
+  return "";
 }
 
 function getLocationReadiness(location: string) {

@@ -3,22 +3,64 @@ import { syncApplicationStatuses } from "@/lib/application-status-sync";
 import { prisma } from "@/lib/db";
 import { getInvalidDiscoveredJobIds } from "@/lib/invalid-discovered-jobs";
 import { discoverJobs } from "@/lib/job-discovery";
+import { analyzeJobUrl, type JobUrlAnalysis } from "@/lib/job-url-analysis";
 
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   searchParams?: Promise<{
     application?: string;
+    analyzeJobUrl?: string;
+    company?: string;
     createdPr?: string;
     discover?: string;
     duplicate?: string;
     error?: string;
+    jobUrl?: string;
+    location?: string;
+    matchScore?: string;
+    notes?: string;
+    role?: string;
+    source?: string;
   }>;
 };
 
 export default async function Home({ searchParams }: PageProps) {
   const params = await searchParams;
   await syncApplicationStatuses();
+  const manualJobDraft = {
+    company: params?.company ?? "",
+    role: params?.role ?? "Data Analyst",
+    location: params?.location ?? "Dallas, TX",
+    source: params?.source ?? "Manual entry",
+    jobUrl: params?.jobUrl ?? "",
+    matchScore: params?.matchScore ?? "85",
+    notes: params?.notes ?? "",
+  };
+  let initialJobAnalysis: JobUrlAnalysis | null = null;
+  let initialJobAnalysisError: string | null = null;
+
+  if (params?.analyzeJobUrl === "1") {
+    try {
+      initialJobAnalysis = await analyzeJobUrl(manualJobDraft.jobUrl);
+      manualJobDraft.company = shouldReplaceGenericCompany(manualJobDraft.company, initialJobAnalysis.company)
+        ? initialJobAnalysis.company
+        : manualJobDraft.company;
+      manualJobDraft.location = shouldReplaceDefaultLocation(manualJobDraft.location, initialJobAnalysis.location)
+        ? initialJobAnalysis.location
+        : manualJobDraft.location;
+      manualJobDraft.notes = appendAnalysisToNotes(manualJobDraft.notes, initialJobAnalysis.tailoringNotes);
+      manualJobDraft.role = shouldReplaceGenericRole(manualJobDraft.role, initialJobAnalysis.role)
+        ? initialJobAnalysis.role
+        : manualJobDraft.role;
+      manualJobDraft.source = shouldReplaceGenericSource(manualJobDraft.source, initialJobAnalysis.source)
+        ? initialJobAnalysis.source
+        : manualJobDraft.source;
+    } catch (error) {
+      initialJobAnalysisError = error instanceof Error ? error.message : "Unable to analyze job URL";
+    }
+  }
+
   const applications = await prisma.application.findMany({
     orderBy: {
       createdAt: "desc",
@@ -63,6 +105,9 @@ export default async function Home({ searchParams }: PageProps) {
       initialArchivedDiscoveredJobs={archivedDiscoveredCandidates}
       initialDiscoveredJobs={activeDiscoveredCandidates}
       initialDiscoveryAt={discovery?.searchedAt ?? null}
+      initialJobAnalysis={initialJobAnalysis}
+      initialJobAnalysisError={initialJobAnalysisError}
+      initialJobDraft={manualJobDraft}
       initialCreatePrError={params?.error ?? (params?.duplicate ? `Application already exists as PR #${params.duplicate}.` : null)}
       initialCreatedPrNumber={params?.createdPr ?? null}
       initialSelectedApplicationId={params?.application ?? null}
@@ -80,4 +125,45 @@ function getRoleKey(company: string, role: string) {
 
 function isInvalidDiscoveredJob(candidate: { validationStatus: string }) {
   return candidate.validationStatus === "INVALID_URL";
+}
+
+function appendAnalysisToNotes(notes: string, analysisNotes: string) {
+  if (!analysisNotes.trim()) return notes;
+
+  return [stripGeneratedAnalysis(notes), analysisNotes].filter(Boolean).join("\n\n");
+}
+
+function stripGeneratedAnalysis(notes: string) {
+  return notes.replace(/\n*Job URL analysis:[\s\S]*$/i, "").trim();
+}
+
+function shouldReplaceGenericRole(currentRole: string, analyzedRole: string) {
+  const normalized = currentRole.trim().toLowerCase();
+
+  return (
+    Boolean(analyzedRole.trim()) &&
+    (normalized === "data analyst" ||
+      normalized === "senior data analyst" ||
+      normalized === "job search" ||
+      normalized === "career search" ||
+      normalized === "job detail")
+  );
+}
+
+function shouldReplaceGenericCompany(currentCompany: string, analyzedCompany: string) {
+  const normalized = currentCompany.trim().toLowerCase();
+
+  return Boolean(analyzedCompany.trim()) && (!normalized || normalized === "aa224" || normalized.includes("taleo"));
+}
+
+function shouldReplaceGenericSource(currentSource: string, analyzedSource: string) {
+  const normalized = currentSource.trim().toLowerCase();
+
+  return Boolean(analyzedSource.trim()) && (!normalized || normalized === "manual entry" || normalized.includes("taleo"));
+}
+
+function shouldReplaceDefaultLocation(currentLocation: string, analyzedLocation: string) {
+  const normalized = currentLocation.trim().toLowerCase();
+
+  return Boolean(analyzedLocation.trim()) && (!normalized || normalized === "dallas, tx");
 }
