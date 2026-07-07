@@ -1,8 +1,12 @@
+import { scorePortfolioFit, type PortfolioFit } from "@/lib/portfolio-fit";
+
 export type JobUrlAnalysis = {
   company: string;
   keywords: string[];
   location: string;
   locationReadiness: string;
+  portfolioFit: PortfolioFit;
+  recommendedMatchScore: number;
   requirements: string[];
   responsibilities: string[];
   role: string;
@@ -112,9 +116,24 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
 
   const locationReadiness = getLocationReadiness(location);
   const summary = buildSummary({ company, keywords, location, role: analyzedRole });
+  const portfolioFit = scorePortfolioFit({
+    keywords,
+    notes: `${responsibilities.join(" ")} ${requirements.join(" ")}`,
+    role: analyzedRole,
+    summary,
+  });
+  const recommendedMatchScore = scoreAnalyzedJob({
+    keywords,
+    location,
+    portfolioFit,
+    role: analyzedRole,
+    summary,
+  });
   const tailoringNotes = buildTailoringNotes({
     keywords,
     locationReadiness,
+    portfolioFit,
+    recommendedMatchScore,
     requirements,
     responsibilities,
     summary,
@@ -126,6 +145,8 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     keywords,
     location,
     locationReadiness,
+    portfolioFit,
+    recommendedMatchScore,
     requirements,
     responsibilities,
     role: analyzedRole,
@@ -398,6 +419,40 @@ function titleCaseKeyword(keyword: string) {
     .join(" ");
 }
 
+function scoreAnalyzedJob({
+  keywords,
+  location,
+  portfolioFit,
+  role,
+  summary,
+}: {
+  keywords: string[];
+  location: string;
+  portfolioFit: PortfolioFit;
+  role: string;
+  summary: string;
+}) {
+  let score = 72;
+  const searchable = `${role} ${summary} ${keywords.join(" ")}`.toLowerCase();
+  const normalizedLocation = location.toLowerCase();
+
+  if (normalizedLocation.includes("dallas")) score += 8;
+  if (normalizedLocation.includes("plano") || normalizedLocation.includes("irving")) score += 6;
+  if (normalizedLocation.includes("remote")) score += 5;
+  if (normalizedLocation.includes("midlothian") || normalizedLocation.includes("fort worth") || normalizedLocation.includes("waco")) score += 3;
+  if (searchable.includes("sql")) score += 4;
+  if (searchable.includes("python")) score += 4;
+  if (searchable.includes("power bi") || searchable.includes("business intelligence") || searchable.includes("dashboard")) score += 4;
+  if (searchable.includes("data analyst") || searchable.includes("analytics")) score += 4;
+  if (searchable.includes("data engineer") || searchable.includes("data engineering")) score += 4;
+  if (searchable.includes("stakeholder")) score += 2;
+  if (portfolioFit.tier === "STRONG") score += 6;
+  if (portfolioFit.tier === "REVIEW") score += 2;
+  if (portfolioFit.tier === "LOW") score -= 8;
+
+  return Math.min(score, 97);
+}
+
 function extractSignalLines(text: string, anchors: string[]) {
   const sentences = text
     .split(/(?<=[.!?])\s+|\s+[•·]\s+|\n+/)
@@ -434,6 +489,8 @@ function buildSummary({
 function buildTailoringNotes({
   keywords,
   locationReadiness,
+  portfolioFit,
+  recommendedMatchScore,
   requirements,
   responsibilities,
   summary,
@@ -441,6 +498,8 @@ function buildTailoringNotes({
 }: {
   keywords: string[];
   locationReadiness: string;
+  portfolioFit: PortfolioFit;
+  recommendedMatchScore: number;
   requirements: string[];
   responsibilities: string[];
   summary: string;
@@ -449,6 +508,8 @@ function buildTailoringNotes({
   return `Job URL analysis:
 - Summary: ${summary || "No summary extracted."}
 - Keywords to consider: ${keywords.length > 0 ? keywords.join(", ") : "No strong keywords detected."}
+- Portfolio fit: ${portfolioFit.tier} (${portfolioFit.score}%). Matched evidence: ${portfolioFit.matchedAnchors.join("; ") || "No strong portfolio anchors matched"}. Gaps to review: ${portfolioFit.missingAnchors.join("; ") || "None"}.
+- Recommended match score: ${recommendedMatchScore}%
 - ${locationReadiness}
 - Responsibilities: ${responsibilities.length > 0 ? responsibilities.join(" | ") : "Review job page manually."}
 - Requirements: ${requirements.length > 0 ? requirements.join(" | ") : "Review job page manually."}

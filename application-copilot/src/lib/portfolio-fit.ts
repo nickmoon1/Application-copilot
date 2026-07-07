@@ -24,7 +24,7 @@ const portfolioAnchors: PortfolioAnchor[] = [
   },
   {
     label: "Predictive modeling",
-    patterns: ["predictive", "regression", "classification", "model", "scikit", "machine learning"],
+    patterns: ["predictive", "regression", "classification", "statistical modeling", "scikit", "machine learning"],
     weight: 12,
   },
   {
@@ -49,7 +49,7 @@ const portfolioAnchors: PortfolioAnchor[] = [
   },
   {
     label: "Financial services complaint analytics",
-    patterns: ["financial", "banking", "consumer", "complaint", "cfpb", "credit", "debt", "mortgage", "risk"],
+    patterns: ["banking", "consumer complaint", "complaint analytics", "cfpb", "credit", "debt", "mortgage", "risk"],
     weight: 10,
   },
   {
@@ -64,7 +64,7 @@ const portfolioAnchors: PortfolioAnchor[] = [
   },
   {
     label: "NLP and speech research",
-    patterns: ["nlp", "speech", "voice", "audio", "pytorch", "transcription", "language"],
+    patterns: ["nlp", "speech", "audio", "pytorch", "transcription"],
     weight: 7,
   },
 ];

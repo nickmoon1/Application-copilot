@@ -119,6 +119,13 @@ type JobUrlAnalysis = {
   keywords: string[];
   location: string;
   locationReadiness: string;
+  portfolioFit: {
+    matchedAnchors: string[];
+    missingAnchors: string[];
+    score: number;
+    tier: "STRONG" | "REVIEW" | "LOW";
+  };
+  recommendedMatchScore: number;
   requirements: string[];
   responsibilities: string[];
   role: string;
@@ -464,6 +471,7 @@ export default function DashboardClient({
         notes: appendAnalysisToNotes(currentDraft.notes, analysis.tailoringNotes),
         role: shouldReplaceGenericRole(currentDraft.role || current.role, analysis.role) ? analysis.role : currentDraft.role || current.role,
         source: shouldReplaceGenericSource(currentDraft.source, analysis.source) ? analysis.source : currentDraft.source || current.source,
+        matchScore: String(analysis.recommendedMatchScore || currentDraft.matchScore || current.matchScore),
       }));
     } catch (error) {
       setJobAnalysisError(error instanceof Error ? error.message : "Unable to analyze job URL");
@@ -835,10 +843,28 @@ export default function DashboardClient({
                   <span>Readiness</span>
                   <strong>{jobAnalysis.locationReadiness}</strong>
                 </div>
+                <div>
+                  <span>Portfolio Match</span>
+                  <strong>{jobAnalysis.portfolioFit.tier} ({jobAnalysis.portfolioFit.score}%)</strong>
+                </div>
+                <div>
+                  <span>Suggested Score</span>
+                  <strong>{jobAnalysis.recommendedMatchScore}%</strong>
+                </div>
                 <div className="wide">
                   <span>Keywords</span>
                   <strong>{jobAnalysis.keywords.length > 0 ? jobAnalysis.keywords.slice(0, 12).join(", ") : "No strong keywords detected"}</strong>
                 </div>
+                <div className="wide">
+                  <span>Matched Portfolio Evidence</span>
+                  <strong>{jobAnalysis.portfolioFit.matchedAnchors.slice(0, 5).join("; ") || "No strong portfolio anchors matched"}</strong>
+                </div>
+                {jobAnalysis.portfolioFit.missingAnchors.length > 0 && (
+                  <div className="wide">
+                    <span>Gaps To Review</span>
+                    <strong>{jobAnalysis.portfolioFit.missingAnchors.join("; ")}</strong>
+                  </div>
+                )}
               </div>
               {jobAnalysis.requirements.length > 0 && (
                 <div className="analysis-list">

@@ -50,6 +50,7 @@ export default async function Home({ searchParams }: PageProps) {
         ? initialJobAnalysis.location
         : manualJobDraft.location;
       manualJobDraft.notes = appendAnalysisToNotes(manualJobDraft.notes, initialJobAnalysis.tailoringNotes);
+      manualJobDraft.matchScore = String(initialJobAnalysis.recommendedMatchScore || manualJobDraft.matchScore);
       manualJobDraft.role = shouldReplaceGenericRole(manualJobDraft.role, initialJobAnalysis.role)
         ? initialJobAnalysis.role
         : manualJobDraft.role;
