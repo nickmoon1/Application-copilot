@@ -485,12 +485,9 @@ function buildResumeTailoring(
   const summary = getResumeSummary(application, strengths);
   const skillGroups = getResumeSkillGroups(matchedSkills);
   const targetAlignment = getTargetRoleAlignment(matchedSkills, strengths);
-  const portfolioCaseStudy = getPortfolioCaseStudy(application);
   const locationReadiness = getLocationReadiness(application);
 
   return `# Tailored Resume Draft - ${application.company} ${application.role}
-
-This is a resume-shaped draft for review. It follows the portfolio direction: business question, method, finding, and practical impact. Experience is kept in reverse-chronological order while bullets are tailored to the role.
 
 ## ${profile.name.toUpperCase()}
 
@@ -501,23 +498,9 @@ ${profile.links.linkedin} | ${profile.links.portfolio}
 
 ${summary}
 
-${targetAlignment.length > 0 ? `## TARGET ROLE ALIGNMENT\n\n${targetAlignment.map((item) => `- ${item}`).join("\n")}\n` : ""}
-## SELECTED PORTFOLIO EVIDENCE
+## ROLE ALIGNMENT and CORE COMPETENCIES
 
-- Business question: ${portfolioCaseStudy.businessQuestion}
-- Method: ${portfolioCaseStudy.method}
-- Finding / impact: ${portfolioCaseStudy.impact}
-- Portfolio: ${profile.links.portfolio}
-
-## CORE COMPETENCIES
-
-${matchedSkills.map((skill) => `- ${skill}`).join("\n")}
-
-## KEYWORD MATCH
-
-- Verified keywords emphasized: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
-- Keywords held for review: ${keywordGate.heldBackKeywords.join(", ") || "None"}
-- Keyword coverage: ${keywordGate.coveragePercent}%
+${targetAlignment.map((item) => `- ${item}`).join("\n")}
 
 ## PROFESSIONAL EXPERIENCE
 
@@ -543,14 +526,17 @@ ${locationReadiness.resumeLine ? `- ${locationReadiness.resumeLine}` : ""}
 
 ## REVIEW NOTES
 
+This resume draft follows the user's July City of Dallas resume structure: compact headline, concise summary, role alignment bullets, reverse-chronological professional experience, education, technical skills, certifications, and additional information.
+
 - Target company: ${application.company}
 - Target role: ${application.role}
 - Source: ${application.source}
 - Job URL: ${application.jobUrl || "Not provided"}
 - Match score: ${application.matchScore}%
 - Evidence emphasized: ${strengths.evidenceUsed.join(" ")}
-- Verified role keywords: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
-- Held-back role keywords: ${keywordGate.heldBackKeywords.join(", ") || "None"}
+- Verified keywords emphasized: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
+- Keywords held for review: ${keywordGate.heldBackKeywords.join(", ") || "None"}
+- Keyword coverage: ${keywordGate.coveragePercent}%
 - Location readiness: ${locationReadiness.summary}
 
 ## Guardrails
@@ -578,18 +564,18 @@ function getResumeHeadline(application: ApplicationDraft) {
   const searchable = `${application.role} ${application.notes}`.toLowerCase();
 
   if (searchable.includes("engineer") || searchable.includes("data solutions")) {
-    return "DATA ENGINEERING | BUSINESS ANALYTICS";
+    return "DATA ENGINEERING | ANALYTICS";
   }
 
   if (searchable.includes("scientist") || searchable.includes("machine learning") || searchable.includes("ai")) {
-    return "DATA SCIENCE | BUSINESS ANALYTICS";
+    return "DATA SCIENCE | ANALYTICS";
   }
 
   if (searchable.includes("business")) {
     return "BUSINESS ANALYTICS | DATA ANALYSIS";
   }
 
-  return "BUSINESS ANALYTICS | DATA ENGINEERING";
+  return "DATA SCIENCE | ANALYTICS";
 }
 
 function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
@@ -600,7 +586,7 @@ function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<t
       ? "data science, predictive analytics, dashboarding, and stakeholder-facing insights"
       : "business analytics, SQL analysis, reporting, dashboards, and stakeholder-facing problem solving";
 
-  return `I am a data professional focused on ${focus}. My background includes ${strengths.primaryEvidence} My work is strongest when it connects a clear business question to a clean analytical workflow, then turns model output, dashboard findings, or data quality patterns into practical decisions.`;
+  return `Data professional focused on ${focus}, with background that includes ${strengths.primaryEvidence} Keen on using analytical workflows to answer business questions and turn model output, dashboard findings, and data quality patterns into practical decisions.`;
 }
 
 function getPortfolioCaseStudy(application: ApplicationDraft) {
@@ -798,10 +784,12 @@ function getResumeSkillGroups(matchedSkills: string[]) {
   const prioritizedSkills = new Set(matchedSkills);
 
   return [
-    `Analytics & Visualization: ${joinKnownSkills(["Power BI", "Tableau", "Excel", "Matplotlib", "Dashboard Development"], prioritizedSkills)}`,
-    `Programming & Databases: ${joinKnownSkills(["Python", "SQL", "Pandas", "NumPy"], prioritizedSkills)}`,
-    `Machine Learning: ${joinKnownSkills(["Scikit-learn", "PyCaret", "NLTK", "Regression", "Classification", "Time Series Forecasting", "Model Evaluation"], prioritizedSkills)}`,
-    `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting", "Data Validation"], prioritizedSkills)}`,
+    `Python: ${joinKnownSkills(["Pandas", "NumPy", "Scikit-learn", "PyCaret"], prioritizedSkills)}`,
+    `SQL: ${joinKnownSkills(["SQL"], prioritizedSkills)} (joins, aggregations, analytical queries)`,
+    `Visualization: ${joinKnownSkills(["Tableau", "Power BI", "Excel", "Dashboard Development"], prioritizedSkills)}`,
+    `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "Data Validation"], prioritizedSkills)}`,
+    `Modeling: ${joinKnownSkills(["Regression", "Classification", "Time Series Forecasting", "Model Evaluation"], prioritizedSkills)}`,
+    `Platforms: ${joinKnownSkills(["Azure", "Databricks", "Snowflake", "Linux"], prioritizedSkills)}`,
     "Business Tools: Microsoft Office Suite, Excel, Reporting & Presentation Development",
   ];
 }
@@ -838,7 +826,7 @@ function getMatchedSkills(application: ApplicationDraft, keywordGate: ReturnType
 }
 
 function getPrioritizedExperience() {
-  const experience = [...profile.experience];
+  const experience = profile.experience.filter((item) => !item.organization.toLowerCase().includes("ameritas"));
 
   return experience.sort((left, right) => getExperienceResumeOrder(left) - getExperienceResumeOrder(right));
 }
