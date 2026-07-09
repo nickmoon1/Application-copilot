@@ -71,8 +71,9 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     getMetaContent(html, "og:title"),
     getTitleTag(html),
   ]);
-  const company = pickFirst([
+  const company = pickCompany([
     getJsonLdValue(jsonLd, ["hiringOrganization.name", "organization.name", "company"]),
+    inferCompanyFromTitle(title),
     inferCompanyFromText(text),
     getMetaContent(html, "og:site_name"),
     inferCompanyFromHost(hostname),
@@ -81,11 +82,9 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
   const inferredRole = inferRoleFromText(text);
   const analyzedRole = inferredRole || role;
   const location = pickFirst([
-    getJsonLdValue(jsonLd, [
-      "jobLocation.address.addressLocality",
-      "jobLocation.address.addressRegion",
-      "jobLocation.address.addressCountry",
-    ]),
+    getJsonLdLocation(jsonLd),
+    inferLocationFromTitle(title),
+    inferLocationFromUrl(url),
     inferLocation(text),
   ]);
   const keywords = extractKeywords(text);
@@ -229,6 +228,30 @@ function getJsonLdValue(records: unknown[], paths: string[]) {
   return "";
 }
 
+function getJsonLdLocation(records: unknown[]) {
+  for (const record of records) {
+    for (const candidate of expandGraph(record)) {
+      const jobLocation = readPath(candidate, "jobLocation");
+      const locations = Array.isArray(jobLocation) ? jobLocation : [jobLocation];
+
+      for (const location of locations) {
+        const locality = readPath(location, "address.addressLocality");
+        const region = readPath(location, "address.addressRegion");
+        const country = readPath(location, "address.addressCountry");
+        const cleanLocality = typeof locality === "string" ? cleanText(locality) : "";
+        const cleanRegion = typeof region === "string" ? normalizeRegion(region) : "";
+        const cleanCountry = typeof country === "string" ? cleanText(country) : "";
+
+        if (cleanLocality && cleanRegion) return `${cleanLocality}, ${cleanRegion}`;
+        if (cleanLocality && cleanCountry) return `${cleanLocality}, ${cleanCountry}`;
+        if (cleanLocality) return cleanLocality;
+      }
+    }
+  }
+
+  return "";
+}
+
 function expandGraph(value: unknown): unknown[] {
   if (!value || typeof value !== "object") return [];
 
@@ -303,33 +326,93 @@ function pickFirst(values: Array<string | undefined>) {
   return values.find((value) => value?.trim())?.trim() ?? "";
 }
 
+function pickCompany(values: Array<string | undefined>) {
+  for (const value of values) {
+    const company = normalizeCompanyName(value ?? "");
+
+    if (company) return company;
+  }
+
+  return "";
+}
+
 function cleanRole(title: string, company: string) {
   return title
     .replace(company, "")
+    .replace(/\|\s*.*$/, "")
     .replace(/\s+[-|]\s+.*$/, "")
     .replace(/\bcareer\b.*$/i, "")
     .trim();
 }
 
 function inferCompanyFromHost(hostname: string) {
-  const [firstPart] = hostname.split(".");
+  const knownHosts: Record<string, string> = {
+    "jobs.dsv.com": "DSV",
+    "dsv.com": "DSV",
+  };
+  const knownHost = knownHosts[hostname];
+
+  if (knownHost) return knownHost;
+
+  const genericSubdomains = new Set(["apply", "career", "careers", "jobs", "recruiting", "www"]);
+  const jobBoardDomains = new Set(["greenhouse", "lever", "myworkdayjobs", "paycor", "recruitingbypaycor", "taleo"]);
+  const parts = hostname.split(".");
+  const firstPart = genericSubdomains.has(parts[0]) && parts[1] ? parts[1] : parts[0];
+
+  if (jobBoardDomains.has(firstPart)) return "";
 
   return firstPart
     .split("-")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .map(formatCompanyToken)
     .join(" ");
+}
+
+function inferCompanyFromTitle(title: string) {
+  const segments = title
+    .split("|")
+    .map((segment) => normalizeCompanyName(segment))
+    .filter(Boolean);
+
+  return segments.length > 1 ? segments[segments.length - 1] : "";
 }
 
 function inferLocation(text: string) {
   const explicitLocation = text.match(/\bLocation:\s*(.{2,80}?)(?=\s+Job Id:|\s+#|\s+\||\.|$)/i);
 
   if (explicitLocation?.[1]) {
-    return cleanText(explicitLocation[1]);
+    return cleanLocation(explicitLocation[1]);
   }
 
-  const locationMatch = text.match(/\b(Dallas|Irving|Plano|Richardson|Arlington|Fort Worth|Frisco|Farmers Branch|Waco|Remote|United States|TX|Texas)\b[^.]{0,80}/i);
+  const cityStateMatch = text.match(
+    /\b(Dallas|Irving|Plano|Richardson|Arlington|Fort Worth|Frisco|Farmers Branch|Waco|Midlothian|Lancaster|Remote)\s*,?\s*(TX|Texas)?\b/i,
+  );
 
-  return locationMatch ? cleanText(locationMatch[0]) : "";
+  if (cityStateMatch?.[1]) {
+    return cleanLocation([cityStateMatch[1], cityStateMatch[2] ?? ""].filter(Boolean).join(", "));
+  }
+
+  const locationMatch = text.match(/\b(United States|TX|Texas)\b[^.]{0,80}/i);
+
+  return locationMatch ? cleanLocation(locationMatch[0]) : "";
+}
+
+function inferLocationFromTitle(title: string) {
+  const match = title.match(
+    /\b(Dallas|Irving|Plano|Richardson|Arlington|Fort Worth|Frisco|Farmers Branch|Waco|Midlothian|Lancaster)\s*,?\s*(TX|Texas)\b/i,
+  );
+
+  return match?.[1] ? cleanLocation(`${match[1]}, ${match[2]}`) : "";
+}
+
+function inferLocationFromUrl(url: string) {
+  const pathname = new URL(url).pathname;
+  const match = pathname.match(
+    /\/job\/(Dallas|Irving|Plano|Richardson|Arlington|Fort-Worth|Frisco|Farmers-Branch|Waco|Midlothian|Lancaster)-[^/]*-(TX|Texas)(?:-|\/|$)/i,
+  );
+
+  if (!match?.[1]) return "";
+
+  return cleanLocation(`${match[1].replace(/-/g, " ")}, ${match[2]}`);
 }
 
 function inferRoleFromText(text: string) {
@@ -368,6 +451,67 @@ function inferCompanyFromText(text: string) {
   return "";
 }
 
+function normalizeCompanyName(value: string) {
+  const cleaned = cleanText(value)
+    .replace(/\b(job|jobs|career|careers|search|opportunities|opening|openings)\b/gi, " ")
+    .replace(/\s+[-|]\s+.*$/, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const normalized = cleaned.toLowerCase();
+
+  if (!cleaned || ["job", "jobs", "career", "careers", "search", "job search"].includes(normalized)) {
+    return "";
+  }
+
+  if (normalized === "dsv" || normalized.includes("dsv global")) return "DSV";
+
+  return cleaned
+    .split(" ")
+    .map(formatCompanyToken)
+    .join(" ");
+}
+
+function formatCompanyToken(part: string) {
+  const uppercaseTokens = new Set(["dsv", "ntt", "at&t", "hhs", "cgi"]);
+  const normalized = part.toLowerCase();
+
+  if (uppercaseTokens.has(normalized)) return normalized.toUpperCase();
+
+  return part.charAt(0).toUpperCase() + part.slice(1);
+}
+
+function cleanLocation(value: string) {
+  const cleaned = cleanText(value)
+    .replace(/\b(skip to content|mailing list|post a job|support)\b.*$/i, "")
+    .replace(/\b(job id|job requisition|apply now)\b.*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  const match = cleaned.match(
+    /\b(Dallas|Irving|Plano|Richardson|Arlington|Fort Worth|Frisco|Farmers Branch|Waco|Midlothian|Lancaster|Remote)\s*,?\s*(TX|Texas)?\b/i,
+  );
+
+  if (match?.[1]) {
+    const city = titleCaseLocation(match[1]);
+    const region = match[2] ? normalizeRegion(match[2]) : "";
+
+    return region ? `${city}, ${region}` : city;
+  }
+
+  return cleaned;
+}
+
+function normalizeRegion(value: string) {
+  return value.trim().toLowerCase() === "texas" ? "TX" : value.trim().toUpperCase();
+}
+
+function titleCaseLocation(value: string) {
+  return value
+    .toLowerCase()
+    .split(" ")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
 function getLocationReadiness(location: string) {
   const normalized = location.toLowerCase();
 
@@ -397,7 +541,7 @@ function isDfwLocation(normalizedLocation: string) {
 }
 
 function isKnownTexasCity(normalizedLocation: string) {
-  return ["waco", "austin", "houston", "san antonio", "mckinney", "denton", "garland"].some((city) =>
+  return ["waco", "austin", "houston", "san antonio", "mckinney", "denton", "garland", "lancaster", "midlothian"].some((city) =>
     normalizedLocation.includes(city),
   );
 }
@@ -457,7 +601,8 @@ function extractSignalLines(text: string, anchors: string[]) {
   const sentences = text
     .split(/(?<=[.!?])\s+|\s+[•·]\s+|\n+/)
     .map(cleanText)
-    .filter((item) => item.length >= 40 && item.length <= 280);
+    .filter((item) => item.length >= 40 && item.length <= 280)
+    .filter((item) => !isBoilerplateJobSentence(item));
   const lowerAnchors = anchors.map((anchor) => anchor.toLowerCase());
   const selected = sentences.filter((sentence) => {
     const normalized = sentence.toLowerCase();
@@ -466,6 +611,24 @@ function extractSignalLines(text: string, anchors: string[]) {
   });
 
   return Array.from(new Set(selected)).slice(0, 6);
+}
+
+function isBoilerplateJobSentence(value: string) {
+  const normalized = value.toLowerCase();
+  const boilerplateSignals = [
+    "actual compensation will be determined",
+    "all applicants will be considered",
+    "current dsv employee",
+    "equal opportunity employer",
+    "founded dsv in denmark",
+    "human resource representative",
+    "if you are interested in learning the status",
+    "please contact your human resource",
+    "selected for further consideration",
+    "we work every day from our many offices",
+  ];
+
+  return boilerplateSignals.some((signal) => normalized.includes(signal));
 }
 
 function buildSummary({

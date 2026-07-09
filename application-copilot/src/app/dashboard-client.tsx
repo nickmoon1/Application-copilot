@@ -206,7 +206,15 @@ function shouldReplaceGenericRole(currentRole: string, analyzedRole: string) {
 function shouldReplaceGenericCompany(currentCompany: string, analyzedCompany: string) {
   const normalized = currentCompany.trim().toLowerCase();
 
-  return Boolean(analyzedCompany.trim()) && (!normalized || normalized === "aa224" || normalized.includes("taleo"));
+  return (
+    Boolean(analyzedCompany.trim()) &&
+    (!normalized ||
+      normalized === "aa224" ||
+      normalized === "jobs" ||
+      normalized === "careers" ||
+      normalized === "career" ||
+      normalized.includes("taleo"))
+  );
 }
 
 function shouldReplaceGenericSource(currentSource: string, analyzedSource: string) {

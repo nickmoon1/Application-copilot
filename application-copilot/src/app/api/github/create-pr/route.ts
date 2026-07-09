@@ -262,7 +262,16 @@ async function enrichApplicationWithJobUrlAnalysis(application: Awaited<ReturnTy
 }
 
 function shouldUseAnalyzedCompany(company: string) {
-  return company.trim().length === 0;
+  const normalized = company.trim().toLowerCase();
+
+  return (
+    normalized.length === 0 ||
+    normalized === "jobs" ||
+    normalized === "careers" ||
+    normalized === "career" ||
+    normalized === "aa224" ||
+    normalized.includes("taleo")
+  );
 }
 
 function shouldUseAnalyzedLocation(location: string, analyzedLocation: string) {
