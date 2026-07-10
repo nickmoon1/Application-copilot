@@ -85,7 +85,11 @@ export default async function Home({ searchParams }: PageProps) {
         return false;
       }
 
-      return !trackedRoleKeys.has(getRoleKey(candidate.company, candidate.role));
+      if (!jobUrl && trackedRoleKeys.has(getRoleKey(candidate.company, candidate.role))) {
+        return false;
+      }
+
+      return true;
     }) ?? [];
   const activeDiscoveredCandidates = untrackedCandidates.filter(
     (candidate) => !isInvalidDiscoveredJob(candidate) && !invalidDiscoveredJobIds.has(candidate.id),

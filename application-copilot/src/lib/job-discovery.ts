@@ -54,6 +54,13 @@ const nttSearchUrls = [
   "https://careers.services.global.ntt/global/en/search-results?keywords=data%20engineer",
   "https://careers.services.global.ntt/global/en/search-results?keywords=business%20analyst",
 ];
+const americanAirlinesCareersUrl = "https://jobs.aa.com/search/?q=data&locationsearch=Fort%20Worth%2C%20TX";
+const americanAirlinesRssUrls = [
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(data)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(business%20analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(data%20scientist)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+];
 
 const nttPriorityJobs: JobSeed[] = [
   {
@@ -214,12 +221,14 @@ export async function discoverJobs() {
   const citiDiscovery = await discoverCitiJobs();
   const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
   const nttDiscovery = await discoverNttJobs();
+  const americanAirlinesDiscovery = await discoverAmericanAirlinesJobs();
   const deloitteDiscovery = discoverDeloitteJobs();
   const jpmorganChaseDiscovery = discoverJpmorganChaseJobs();
   const seeds = mergeJobs([
     ...(liveAttJobs.length > 0 ? liveAttJobs : attFallbackJobs),
     ...citiJobs,
     ...nttDiscovery.jobs,
+    ...americanAirlinesDiscovery.jobs,
     ...deloitteDiscovery.jobs,
     ...jpmorganChaseDiscovery.jobs,
     ...fallbackJobs,
@@ -258,6 +267,12 @@ export async function discoverJobs() {
         found: nttDiscovery.jobs.length,
       },
       {
+        name: "American Airlines Careers",
+        url: americanAirlinesCareersUrl,
+        mode: americanAirlinesDiscovery.mode,
+        found: americanAirlinesDiscovery.jobs.length,
+      },
+      {
         name: "Deloitte Careers",
         url: deloitteCareersUrl,
         mode: deloitteDiscovery.mode,
@@ -271,6 +286,131 @@ export async function discoverJobs() {
       },
     ],
   };
+}
+
+async function discoverAmericanAirlinesJobs() {
+  const feeds = await Promise.all(
+    americanAirlinesRssUrls.map(async (url) => {
+      try {
+        return await fetchText(url);
+      } catch {
+        return "";
+      }
+    }),
+  );
+  const parsedJobs = mergeJobs(feeds.flatMap(parseAmericanAirlinesRss));
+  const jobs = parsedJobs
+    .filter((job) => isTargetLocationCandidate(job) && isAmericanAirlinesTargetRole(job))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .slice(0, 12);
+
+  return {
+    jobs,
+    mode: getLiveConnectorMode(parsedJobs.length, jobs.length),
+  };
+}
+
+function parseAmericanAirlinesRss(xml: string): JobSeed[] {
+  const results: JobSeed[] = [];
+  const itemPattern = /<item>([\s\S]*?)<\/item>/g;
+
+  for (const itemMatch of xml.matchAll(itemPattern)) {
+    const item = itemMatch[1] ?? "";
+    const rawTitle = extractCdata(item, "title");
+    const rawDescription = extractCdata(item, "description");
+    const link = cleanXmlText(item.match(/<link>([\s\S]*?)<\/link>/)?.[1] ?? "");
+    const posted = normalizeDate(cleanXmlText(item.match(/<pubDate>([\s\S]*?)<\/pubDate>/)?.[1] ?? ""));
+    const titleParts = parseAmericanAirlinesTitle(rawTitle);
+    const summaryText = cleanHtmlText(rawDescription);
+
+    if (!titleParts.role || !titleParts.location || !link) continue;
+
+    results.push({
+      id: `american-airlines-${slugify(titleParts.role)}-${slugify(link)}`,
+      company: "American Airlines",
+      role: titleParts.role,
+      location: titleParts.location,
+      source: "American Airlines Careers - Live",
+      jobUrl: decodeHtml(link),
+      posted,
+      summary: buildAmericanAirlinesSummary(titleParts.role, titleParts.location, summaryText),
+      keywords: inferKeywords(`${titleParts.role} ${summaryText}`),
+    });
+  }
+
+  return results;
+}
+
+function extractCdata(value: string, tag: string) {
+  const match = value.match(new RegExp(`<${tag}>\\s*<!\\[CDATA\\[([\\s\\S]*?)\\]\\]>\\s*<\\/${tag}>`, "i"));
+
+  return match?.[1] ? cleanXmlText(match[1]) : "";
+}
+
+function cleanXmlText(value: string) {
+  return decodeHtml(value).replace(/\s+/g, " ").trim();
+}
+
+function parseAmericanAirlinesTitle(title: string) {
+  const match = title.match(/^(.+?)\s+\((.+?),\s*TX,\s*US\)$/i);
+  const role = cleanXmlText(match?.[1] ?? title).replace(/\s+/g, " ").trim();
+  const location = cleanXmlText(match?.[2] ?? "Fort Worth").replace("DFW Airport", "Fort Worth");
+
+  return {
+    location: location.includes("TX") ? location : `${location}, TX`,
+    role,
+  };
+}
+
+function buildAmericanAirlinesSummary(role: string, location: string, description: string) {
+  const signals = extractSummarySignals(description);
+
+  return [
+    `Live American Airlines posting for ${role} in ${location}.`,
+    signals.length > 0 ? signals.join(" ") : "Review the job page for detailed requirements.",
+  ].join(" ");
+}
+
+function extractSummarySignals(description: string) {
+  return description
+    .split(/(?<=[.!?])\s+|\s+[\u2022\u00b7]\s+/)
+    .map(cleanHtmlText)
+    .filter((sentence) => sentence.length >= 55 && sentence.length <= 260)
+    .filter((sentence) => {
+      const normalized = sentence.toLowerCase();
+
+      return [
+        "analy",
+        "data",
+        "report",
+        "forecast",
+        "model",
+        "stakeholder",
+        "business",
+        "python",
+        "sql",
+        "excel",
+      ].some((signal) => normalized.includes(signal));
+    })
+    .slice(0, 3);
+}
+
+function isAmericanAirlinesTargetRole(job: JobSeed) {
+  const searchable = `${job.role} ${job.summary}`.toLowerCase();
+  const roleSignals = [
+    "analyst",
+    "analytics",
+    "data scientist",
+    "operations research",
+    "business intelligence",
+    "reporting",
+  ];
+
+  if (!roleSignals.some((signal) => searchable.includes(signal))) {
+    return false;
+  }
+
+  return isTargetRole(job.role, job.keywords) || job.keywords.some((keyword) => ["data analyst", "data scientist", "analytics"].includes(keyword));
 }
 
 async function discoverAttJobs() {
@@ -871,10 +1011,16 @@ function isTargetRole(role: string, keywords: string[]) {
 
 function isOverSeniorForCurrentProfile(role: string) {
   const normalized = role.toLowerCase();
+
+  if ((normalized.startsWith("sr ") || normalized.startsWith("senior ")) && !normalized.includes("analyst/sr analyst")) {
+    return true;
+  }
+
   const seniorSignals = [
     "vice president",
     "senior vice president",
     "assistant vice president",
+    "principal",
     "lead ",
     "manager",
     "director",
