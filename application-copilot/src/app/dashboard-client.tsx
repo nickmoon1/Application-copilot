@@ -235,6 +235,35 @@ function isWeakJobAnalysis(analysis: JobUrlAnalysis) {
   return genericRole || analysis.keywords.length === 0 || analysis.requirements.length === 0 || analysis.warnings.length > 0;
 }
 
+function compareDiscoveredJobs(left: DiscoveredJob, right: DiscoveredJob) {
+  const matchDifference = right.matchScore - left.matchScore;
+  if (matchDifference !== 0) return matchDifference;
+
+  const portfolioDifference = right.portfolioFit.score - left.portfolioFit.score;
+  if (portfolioDifference !== 0) return portfolioDifference;
+
+  const locationDifference = getLocationFitRank(right.locationFit) - getLocationFitRank(left.locationFit);
+  if (locationDifference !== 0) return locationDifference;
+
+  const validationDifference = getValidationRank(right.validationStatus) - getValidationRank(left.validationStatus);
+  if (validationDifference !== 0) return validationDifference;
+
+  return new Date(right.posted).getTime() - new Date(left.posted).getTime();
+}
+
+function getLocationFitRank(locationFit: string) {
+  if (locationFit === "LOCAL_MATCH") return 3;
+  if (locationFit === "REMOTE_OR_MULTI_LOCATION") return 2;
+  return 1;
+}
+
+function getValidationRank(validationStatus: string) {
+  if (validationStatus === "LIVE_VERIFIED") return 4;
+  if (validationStatus === "URL_VERIFIED") return 3;
+  if (validationStatus === "POSSIBLY_STALE") return 2;
+  return 1;
+}
+
 function getManualIntakeFormDraft() {
   const form = document.querySelector<HTMLFormElement>("#manual-intake-form");
   const formData = form ? new FormData(form) : null;
@@ -304,6 +333,11 @@ export default function DashboardClient({
   const lastDiscoveryAt = initialDiscoveryAt;
   const discoveredJobs = initialDiscoveredJobs;
   const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
+  const rankedDiscoveredJobs = useMemo(() => [...discoveredJobs].sort(compareDiscoveredJobs), [discoveredJobs]);
+  const priorityDiscoveredJobs = rankedDiscoveredJobs.slice(0, 3);
+  const stretchDiscoveredJobs = rankedDiscoveredJobs.slice(3, 5);
+  const backlogDiscoveredJobs = rankedDiscoveredJobs.slice(5);
+  const dailyDiscoveredJobs = rankedDiscoveredJobs.slice(0, 5);
   const activeApplications = useMemo(
     () => savedApplications.filter((application) => !isTerminalInactiveStatus(application.status)),
     [savedApplications],
@@ -686,84 +720,173 @@ export default function DashboardClient({
           <div className="panel-head">
             <div>
               <p className="eyebrow">Automated Discovery</p>
-              <h2>Found Jobs</h2>
+              <h2>Daily 5 Queue</h2>
             </div>
             <span className="count-label">
               {initialDiscoveredJobs.length + initialArchivedDiscoveredJobs.length > 0
-                  ? `${discoveredJobs.length} active / ${archivedDiscoveredJobs.length} invalid`
+                  ? `${dailyDiscoveredJobs.length} queued / ${backlogDiscoveredJobs.length} backlog / ${archivedDiscoveredJobs.length} invalid`
                   : "Not run"}
             </span>
           </div>
 
-          {discoveredJobs.length > 0 ? (
-            <div className="discovery-list">
-              {discoveredJobs.map((candidate) => (
-                <article className="discovery-card" key={candidate.id}>
-                  <div>
-                    <p className="eyebrow">{candidate.company}</p>
-                    <h3>{candidate.role}</h3>
-                    <div className="job-meta">
-                      <span>{candidate.location}</span>
-                      <span>{candidate.source}</span>
-                      <span>Posted {formatDate(candidate.posted)}</span>
+          {dailyDiscoveredJobs.length > 0 ? (
+            <>
+              <div className="daily-queue-summary">
+                <div>
+                  <span>Today&apos;s target</span>
+                  <strong>Apply to 3, review up to 5</strong>
+                </div>
+                <div>
+                  <span>Ranking logic</span>
+                  <strong>Match, portfolio fit, location, live validation</strong>
+                </div>
+              </div>
+
+              {[
+                {
+                  description: "Best-fit roles for today's application goal.",
+                  jobs: priorityDiscoveredJobs,
+                  label: "Priority",
+                  title: "Top 3",
+                },
+                {
+                  description: "Extra roles for higher-energy days.",
+                  jobs: stretchDiscoveredJobs,
+                  label: "Stretch",
+                  title: "Stretch 2",
+                },
+              ].filter((section) => section.jobs.length > 0).map((section) => (
+                <div className="daily-queue-section" key={section.title}>
+                  <div className="tracker-heading">
+                    <div>
+                      <h3>{section.title}</h3>
+                      <span>{section.description}</span>
                     </div>
+                    <strong>{section.jobs.length}</strong>
                   </div>
-                  <p>{candidate.summary}</p>
-                  <p className="validation-note">{candidate.validationDetails}</p>
-                  <div className="tag-row">
-                    <span className="pill ready">{candidate.matchScore}% match</span>
-                    {candidate.portfolioFit && (
-                      <span className="pill">
-                        Portfolio {candidate.portfolioFit.tier} ({candidate.portfolioFit.score}%)
-                      </span>
-                    )}
-                    <span className="pill">{candidate.locationFit}</span>
-                    <span className="pill">{candidate.validationStatus}</span>
-                    {candidate.keywords.slice(0, 4).map((keyword) => (
-                      <span className="pill" key={keyword}>{keyword}</span>
+                  <div className="discovery-list">
+                    {section.jobs.map((candidate) => (
+                      <article className="discovery-card" key={candidate.id}>
+                        <div>
+                          <div className="card-heading-row">
+                            <p className="eyebrow">{candidate.company}</p>
+                            <span className={`pill ${section.label === "Priority" ? "ready" : ""}`}>{section.label}</span>
+                          </div>
+                          <h3>{candidate.role}</h3>
+                          <div className="job-meta">
+                            <span>{candidate.location}</span>
+                            <span>{candidate.source}</span>
+                            <span>Posted {formatDate(candidate.posted)}</span>
+                          </div>
+                        </div>
+                        <p>{candidate.summary}</p>
+                        <p className="validation-note">{candidate.validationDetails}</p>
+                        <div className="tag-row">
+                          <span className="pill ready">{candidate.matchScore}% match</span>
+                          {candidate.portfolioFit && (
+                            <span className="pill">
+                              Portfolio {candidate.portfolioFit.tier} ({candidate.portfolioFit.score}%)
+                            </span>
+                          )}
+                          <span className="pill">{candidate.locationFit}</span>
+                          <span className="pill">{candidate.validationStatus}</span>
+                          {candidate.keywords.slice(0, 4).map((keyword) => (
+                            <span className="pill" key={keyword}>{keyword}</span>
+                          ))}
+                        </div>
+                        <div className="row-actions">
+                          <a className="secondary link-button" href={candidate.jobUrl} rel="noreferrer" target="_blank">
+                            Open Job
+                          </a>
+                          <form action="/github/create-pr" className="inline-form" method="post">
+                            <input name="company" type="hidden" value={candidate.company} />
+                            <input name="role" type="hidden" value={candidate.role} />
+                            <input name="location" type="hidden" value={candidate.location} />
+                            <input name="source" type="hidden" value={candidate.source} />
+                            <input name="jobUrl" type="hidden" value={candidate.jobUrl} />
+                            <input name="matchScore" type="hidden" value={candidate.matchScore} />
+                            <input name="notes" type="hidden" value={candidate.notes} />
+                            <button className="primary" type="submit">
+                              Create PR
+                            </button>
+                          </form>
+                          <form action="/jobs/discovered/invalid" className="inline-form" method="post">
+                            <input name="jobId" type="hidden" value={candidate.id} />
+                            <button
+                              className="secondary"
+                              title="Move this discovered job to the invalid found jobs folder"
+                              type="submit"
+                            >
+                              Invalid
+                            </button>
+                          </form>
+                        </div>
+                      </article>
                     ))}
                   </div>
-                  <div className="row-actions">
-                    <a className="secondary link-button" href={candidate.jobUrl} rel="noreferrer" target="_blank">
-                      Open Job
-                    </a>
-                    <form action="/github/create-pr" className="inline-form" method="post">
-                      <input name="company" type="hidden" value={candidate.company} />
-                      <input name="role" type="hidden" value={candidate.role} />
-                      <input name="location" type="hidden" value={candidate.location} />
-                      <input name="source" type="hidden" value={candidate.source} />
-                      <input name="jobUrl" type="hidden" value={candidate.jobUrl} />
-                      <input name="matchScore" type="hidden" value={candidate.matchScore} />
-                      <input name="notes" type="hidden" value={candidate.notes} />
-                      <button className="primary" type="submit">
-                        Create PR
-                      </button>
-                    </form>
-                    <form action="/jobs/discovered/invalid" className="inline-form" method="post">
-                      <input name="jobId" type="hidden" value={candidate.id} />
-                      <button
-                        className="secondary"
-                        title="Move this discovered job to the invalid found jobs folder"
-                        type="submit"
-                      >
-                        Invalid
-                      </button>
-                    </form>
-                  </div>
-                </article>
+                </div>
               ))}
-            </div>
+
+              {backlogDiscoveredJobs.length > 0 && (
+                <details className="discovery-archive">
+                  <summary>
+                    <span>Discovery Backlog</span>
+                    <strong>{backlogDiscoveredJobs.length}</strong>
+                  </summary>
+                  <div className="discovery-list archived-discovery-list">
+                    {backlogDiscoveredJobs.map((candidate) => (
+                      <article className="discovery-card archived-row" key={candidate.id}>
+                        <div>
+                          <p className="eyebrow">{candidate.company}</p>
+                          <h3>{candidate.role}</h3>
+                          <div className="job-meta">
+                            <span>{candidate.location}</span>
+                            <span>{candidate.source}</span>
+                            <span>{candidate.matchScore}% match</span>
+                            <span>{candidate.locationFit}</span>
+                          </div>
+                        </div>
+                        <p>{candidate.summary}</p>
+                        <div className="row-actions">
+                          <a className="ghost link-button" href={candidate.jobUrl} rel="noreferrer" target="_blank">
+                            Open Job
+                          </a>
+                          <form action="/github/create-pr" className="inline-form" method="post">
+                            <input name="company" type="hidden" value={candidate.company} />
+                            <input name="role" type="hidden" value={candidate.role} />
+                            <input name="location" type="hidden" value={candidate.location} />
+                            <input name="source" type="hidden" value={candidate.source} />
+                            <input name="jobUrl" type="hidden" value={candidate.jobUrl} />
+                            <input name="matchScore" type="hidden" value={candidate.matchScore} />
+                            <input name="notes" type="hidden" value={candidate.notes} />
+                            <button className="secondary" type="submit">
+                              Create PR
+                            </button>
+                          </form>
+                          <form action="/jobs/discovered/invalid" className="inline-form" method="post">
+                            <input name="jobId" type="hidden" value={candidate.id} />
+                            <button className="secondary" type="submit">
+                              Invalid
+                            </button>
+                          </form>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                </details>
+              )}
+            </>
           ) : (
             <div className="empty-state discovery-empty">
               {lastDiscoveryAt ? (
                 <>
-                  <strong>No active new jobs passed validation.</strong>
+                  <strong>No roles are ready for today&apos;s queue.</strong>
                   <span>
                     Already tracked roles are hidden from discovery, and closed or unreachable roles are moved to the invalid folder below.
                   </span>
                 </>
               ) : (
-                <span>Click Find Jobs to search configured Dallas-area sources and stage strong matches for review.</span>
+                <span>Click Find Jobs to build today&apos;s top five application queue from configured sources.</span>
               )}
             </div>
           )}
