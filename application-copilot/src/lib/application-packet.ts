@@ -337,9 +337,65 @@ function getQuestionsToVerify(application: ApplicationDraft) {
   return questions;
 }
 
+function isAnalystReportingRole(application: ApplicationDraft) {
+  const searchable = `${application.company} ${application.role} ${application.notes} ${application.source}`.toLowerCase();
+
+  return [
+    "analyst",
+    "analytics",
+    "reporting",
+    "performance",
+    "benefits",
+    "contact center",
+    "operations",
+    "business intelligence",
+    "dashboard",
+    "kpi",
+  ].some((signal) => searchable.includes(signal));
+}
+
+function isAmericanAirlinesStyleRole(application: ApplicationDraft) {
+  const searchable = `${application.company} ${application.role} ${application.notes} ${application.source}`.toLowerCase();
+
+  return (
+    searchable.includes("american airlines") ||
+    searchable.includes("jobs.aa.com") ||
+    searchable.includes("airline") ||
+    searchable.includes("transportation")
+  );
+}
+
 function buildCoverLetter(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
   const portfolioCaseStudy = getPortfolioCaseStudy(application);
   const locationReadiness = getLocationReadiness(application);
+  const useAnalystTone = isAnalystReportingRole(application);
+  const transportationBridge = isAmericanAirlinesStyleRole(application)
+    ? " Working within a highly regulated transportation environment taught me the importance of accuracy, accountability, timely reporting, and cross-functional communication."
+    : "";
+
+  if (useAnalystTone) {
+    return `# ${application.company} - ${application.role}
+
+Dear Hiring Manager,
+
+I am excited to apply for the ${application.role} position with ${application.company}. As a Business Analytics professional with graduate-level education in Computer Science and Information Systems & Business Analytics, I have built a strong foundation in transforming operational and business data into meaningful insights. My experience includes using SQL, Python, Excel, Tableau, and Power BI to improve reporting, analyze performance, validate data, and support data-driven decision making.
+
+Most recently, I have completed business analytics and data science projects where I designed reporting workflows, developed KPI-focused dashboards, conducted trend analysis, and presented recommendations to technical and non-technical stakeholders. These experiences strengthened my ability to communicate analytical findings in ways that support business strategy and operational improvement.
+
+Previously, as a Field Engineer with Thales Group, I analyzed operational transportation data, investigated system performance issues, validated critical datasets, and collaborated with cross-functional teams to support reliable operations.${transportationBridge}
+
+In addition to my industry experience, my work in higher education has allowed me to mentor students, coordinate research initiatives, and collaborate with faculty on AI and analytics projects. These experiences strengthened my communication skills while reinforcing my interest in using data to solve organizational challenges.
+
+What excites me most about ${application.company} is the opportunity to apply my analytical background to support meaningful reporting, performance analysis, and process improvement. I enjoy identifying trends, improving reporting processes, and helping business leaders make informed decisions using reliable data. I am confident my combination of technical skills, business analytics training, and collaborative approach would allow me to contribute effectively to this role.
+
+${locationReadiness.coverLetter}
+
+Thank you for your time and consideration. I would welcome the opportunity to discuss how my background aligns with the needs of ${application.company}.
+
+Sincerely,
+${profile.name}
+`;
+  }
 
   return `# ${application.company} - ${application.role}
 
@@ -486,19 +542,20 @@ function buildResumeTailoring(
   const skillGroups = getResumeSkillGroups(matchedSkills);
   const targetAlignment = getTargetRoleAlignment(matchedSkills, strengths);
   const locationReadiness = getLocationReadiness(application);
+  const competenciesHeading = isAnalystReportingRole(application) ? "CORE COMPETENCIES" : "ROLE ALIGNMENT and CORE COMPETENCIES";
 
   return `# Tailored Resume Draft - ${application.company} ${application.role}
 
 ## ${profile.name.toUpperCase()}
 
 ${profile.location} | ${profile.phone} | ${profile.email}
-${profile.links.linkedin} | ${profile.links.portfolio}
+LinkedIn: ${profile.links.linkedin} | Portfolio: ${profile.links.portfolio} | GitHub: ${profile.links.github}
 
 ## ${headline}
 
 ${summary}
 
-## ROLE ALIGNMENT and CORE COMPETENCIES
+## ${competenciesHeading}
 
 ${targetAlignment.map((item) => `- ${item}`).join("\n")}
 
@@ -526,7 +583,7 @@ ${locationReadiness.resumeLine ? `- ${locationReadiness.resumeLine}` : ""}
 
 ## REVIEW NOTES
 
-This resume draft follows the user's July City of Dallas resume structure: compact headline, concise summary, role alignment bullets, reverse-chronological professional experience, education, technical skills, certifications, and additional information.
+This resume draft follows the user's July resume structure, updated from the American Airlines analyst packet: compact headline, concise summary, truthful core competencies, reverse-chronological professional experience, education, technical skills, certifications, and additional information.
 
 - Target company: ${application.company}
 - Target role: ${application.role}
@@ -567,6 +624,10 @@ function getResumeHeadline(application: ApplicationDraft) {
     return "DATA ENGINEERING | ANALYTICS";
   }
 
+  if (isAnalystReportingRole(application)) {
+    return "ANALYST | BUSINESS ANALYTICS | DATA REPORTING";
+  }
+
   if (searchable.includes("scientist") || searchable.includes("machine learning") || searchable.includes("ai")) {
     return "DATA SCIENCE | ANALYTICS";
   }
@@ -575,18 +636,31 @@ function getResumeHeadline(application: ApplicationDraft) {
     return "BUSINESS ANALYTICS | DATA ANALYSIS";
   }
 
-  return "DATA SCIENCE | ANALYTICS";
+  return "ANALYST | BUSINESS ANALYTICS | DATA REPORTING";
 }
 
 function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
   const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const analystTools = getToolListForSummary(application);
+
+  if (isAnalystReportingRole(application)) {
+    return `Business Analytics professional with experience transforming operational and business data into actionable insights through ${analystTools}. Skilled in performance reporting, KPI development, dashboard creation, process improvement, and communicating analytical findings to technical and non-technical stakeholders. Experienced collaborating across cross-functional teams to improve operational performance, streamline reporting processes, and support data-driven decision making.`;
+  }
+
   const focus = searchable.includes("engineer")
     ? "data engineering, analytics workflows, data validation, and operational reporting"
     : searchable.includes("scientist") || searchable.includes("ai")
       ? "data science, predictive analytics, dashboarding, and stakeholder-facing insights"
       : "business analytics, SQL analysis, reporting, dashboards, and stakeholder-facing problem solving";
 
-  return `Data professional focused on ${focus}, with background that includes ${strengths.primaryEvidence} Keen on using analytical workflows to answer business questions and turn model output, dashboard findings, and data quality patterns into practical decisions.`;
+  return `Data professional focused on ${focus}, with background that includes ${strengths.primaryEvidence} Uses analytical workflows to answer business questions and turn model output, dashboard findings, and data quality patterns into practical decisions.`;
+}
+
+function getToolListForSummary(application: ApplicationDraft) {
+  const matchedSkills = getMatchedSkills(application, buildKeywordGate(application));
+  const preferred = ["SQL", "Python", "Excel", "Power BI", "Tableau"].filter((skill) => matchedSkills.includes(skill) || skill === "Excel");
+
+  return Array.from(new Set(preferred)).join(", ");
 }
 
 function getPortfolioCaseStudy(application: ApplicationDraft) {
@@ -665,11 +739,11 @@ function getPortfolioCaseStudy(application: ApplicationDraft) {
 
 function getTargetRoleAlignment(matchedSkills: string[], strengths: ReturnType<typeof selectStrengths>) {
   const skillEvidence: Record<string, string> = {
-    "Power BI": "Built dashboard and KPI reporting work that can be positioned for Power BI or Tableau-driven reporting needs.",
-    Tableau: "Created stakeholder-facing dashboards and translated analytical outputs into business-friendly views.",
-    Excel: "Used Excel alongside Python and SQL for analysis, reporting, and research dataset workflows.",
-    SQL: "Used SQL for exploratory analysis, troubleshooting, validation, and operational data problem solving.",
-    Python: "Built Python workflows for cleaning, EDA, feature engineering, forecasting, and predictive modeling.",
+    "Power BI": "Power BI",
+    Tableau: "Tableau",
+    Excel: "Microsoft Excel",
+    SQL: "SQL",
+    Python: "Python",
     Forecasting: "Completed forecasting and predictive analytics projects tied to customer behavior, operations, and financial indicators.",
     "KPI Reporting": "Developed KPI-oriented dashboards and reporting summaries for non-technical stakeholders.",
     "Data Validation": "Performed data validation, quality checks, and troubleshooting across research and operational datasets.",
@@ -681,8 +755,27 @@ function getTargetRoleAlignment(matchedSkills: string[], strengths: ReturnType<t
   const alignedSkills = matchedSkills
     .map((skill) => skillEvidence[skill])
     .filter((evidence): evidence is string => Boolean(evidence));
+  const competencyFallback = [
+    "Business Analytics",
+    "Performance Reporting",
+    "KPI Development",
+    "Dashboard Design",
+    "Data Visualization",
+    "SQL",
+    "Python",
+    "Power BI",
+    "Tableau",
+    "Microsoft Excel",
+    "Data Validation",
+    "Process Improvement",
+    "Stakeholder Communication",
+    "Root Cause Analysis",
+    "Business Intelligence",
+    "Forecasting",
+    "Statistical Analysis",
+  ];
 
-  return Array.from(new Set([strengths.primaryEvidence, ...alignedSkills])).slice(0, 5);
+  return Array.from(new Set([...alignedSkills, ...competencyFallback])).slice(0, 18);
 }
 
 function buildResumeExperienceBlock(
@@ -719,6 +812,7 @@ function getExperienceBullets(
         "Built end-to-end analytical workflows using Python, SQL, Excel, and visualization tools to analyze operational and business datasets.",
         "Conducted exploratory data analysis and trend identification to support data-driven recommendations and strategic insights.",
         "Developed dashboards and KPI reporting tools in Tableau and Power BI for non-technical stakeholders.",
+        "Built executive dashboards tracking KPIs and operational performance metrics for business stakeholders.",
         "Performed forecasting and predictive analytics projects involving customer behavior, operational performance, and financial indicators.",
         "Collaborated on business-focused AI and analytics initiatives while managing multiple deliverables and deadlines.",
       ],
@@ -734,6 +828,7 @@ function getExperienceBullets(
         "Assisted cross-functional technical teams in identifying process improvements and increasing system reliability.",
         "Conducted data validation, troubleshooting, and reporting to support operational continuity and decision-making.",
         "Coordinated issue resolution activities while ensuring timely completion of assigned operational projects.",
+        "Produced technical reports supporting decision making, maintenance planning, and continuous improvement initiatives.",
       ],
       searchable,
     );
@@ -784,13 +879,19 @@ function getResumeSkillGroups(matchedSkills: string[]) {
   const prioritizedSkills = new Set(matchedSkills);
 
   return [
-    `Python: ${joinKnownSkills(["Pandas", "NumPy", "Scikit-learn", "PyCaret"], prioritizedSkills)}`,
-    `SQL: ${joinKnownSkills(["SQL"], prioritizedSkills)} (joins, aggregations, analytical queries)`,
-    `Visualization: ${joinKnownSkills(["Tableau", "Power BI", "Excel", "Dashboard Development"], prioritizedSkills)}`,
-    `Data Analysis: ${joinKnownSkills(["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "Data Validation"], prioritizedSkills)}`,
-    `Modeling: ${joinKnownSkills(["Regression", "Classification", "Time Series Forecasting", "Model Evaluation"], prioritizedSkills)}`,
-    `Platforms: ${joinKnownSkills(["Azure", "Databricks", "Snowflake", "Linux"], prioritizedSkills)}`,
-    "Business Tools: Microsoft Office Suite, Excel, Reporting & Presentation Development",
+    `Programming: ${joinKnownSkills(["Python", "SQL"], prioritizedSkills)}`,
+    `Visualization: ${joinKnownSkills(["Power BI", "Tableau", "Excel"], prioritizedSkills)}`,
+    `Analytics: ${joinKnownSkills([
+      "EDA",
+      "Statistical Modeling",
+      "Forecasting",
+      "Data Cleaning",
+      "Feature Engineering",
+      "KPI Reporting",
+      "Dashboard Development",
+    ], prioritizedSkills)}`,
+    `Platforms: ${joinKnownSkills(["Snowflake", "Databricks", "Linux", "Azure"], prioritizedSkills)}`,
+    "Business: Reporting, Process Improvement, Stakeholder Communication, Business Intelligence",
   ];
 }
 

@@ -83,7 +83,7 @@
     "For experience descriptions, reuse the user's bullet structure and practical wording."
   ],
   "resumeFormatProfile": {
-    "source": "Resume_citi.docx provided 2026-06-06",
+    "source": "Resume_citi.docx provided 2026-06-06; American Airlines analyst packet provided 2026-07-11",
     "layout": [
       "Single-column resume layout.",
       "Compact Calibri-style formatting around 10 pt.",
@@ -103,8 +103,8 @@
       "Certifications",
       "Additional information"
     ],
-    "headlinePattern": "Use a compact target headline such as BUSINESS ANALYTICS | DATA ENGINEERING.",
-    "summaryPattern": "Use a short first-person professional summary that states focus area, core tools, and practical decision-making value.",
+    "headlinePattern": "Use a compact target headline such as ANALYST | BUSINESS ANALYTICS | DATA REPORTING for analyst/reporting roles, BUSINESS ANALYTICS | DATA ANALYSIS for business analyst roles, DATA ENGINEERING | ANALYTICS for data engineering roles, or DATA SCIENCE | ANALYTICS for data science roles.",
+    "summaryPattern": "Use a short third-person professional summary that states focus area, core tools, reporting/operations value, and stakeholder communication. Avoid first-person language in the resume summary.",
     "coreCompetenciesPattern": "Use short standalone skill terms. Prioritize job-matched skills first.",
     "experiencePattern": [
       "Company — City, ST",
@@ -126,6 +126,12 @@
       "Use the user's bullet language as the default voice for tailored resumes.",
       "For each role, prioritize the most relevant four to five bullets instead of overloading the resume.",
       "For banking, analytics, and data roles, emphasize SQL, Python, dashboards, data validation, KPI reporting, stakeholder communication, and operational decision support."
+    ],
+    "americanAirlinesAnalystCalibration": [
+      "For American Airlines, transportation, operations, benefits, performance, reporting, and contact-center analytics roles, use the Analyst | Business Analytics | Data Reporting resume direction.",
+      "Emphasize performance reporting, KPI development, dashboard creation, process improvement, data validation, operational analysis, and communication with technical and non-technical stakeholders.",
+      "Use Thales transportation systems experience as a strong bridge to airline operations, regulated environments, data accuracy, reliability, and cross-functional work.",
+      "Use a warm, grounded cover-letter tone: excited to apply, graduate-level analytics education, practical SQL/Python/Excel/Tableau/Power BI work, and interest in improving reporting processes."
     ]
   },
   "avoid": [
@@ -137,5 +143,5 @@
     "Saving protected demographic or disability disclosures in application packet files",
     "Treating voluntary disclosure answers as reusable writing examples"
   ],
-  "calibrationStatus": "Calibrated from Citi employer form answers and Resume_citi.docx provided on 2026-06-06. Sensitive personal, demographic, disability, and address fields were intentionally excluded."
+  "calibrationStatus": "Calibrated from Citi employer form answers and Resume_citi.docx provided on 2026-06-06, then updated from the American Airlines analyst application packet provided on 2026-07-11. Sensitive personal, demographic, disability, and address fields were intentionally excluded."
 }
