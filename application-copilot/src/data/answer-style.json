@@ -106,7 +106,7 @@
     ],
     "headlinePattern": "Use a compact target headline such as ANALYST | BUSINESS ANALYTICS | DATA REPORTING for analyst/reporting roles, BUSINESS ANALYTICS | DATA ANALYSIS for business analyst roles, DATA ENGINEERING | ANALYTICS for data engineering roles, or DATA SCIENCE | ANALYTICS for data science roles.",
     "summaryPattern": "Use a short third-person professional summary that states focus area, core tools, reporting/operations value, and stakeholder communication. Avoid first-person language in the resume summary.",
-    "coreCompetenciesPattern": "Use short standalone skill terms. Prioritize job-matched skills first.",
+    "coreCompetenciesPattern": "Use short standalone skill terms. Prioritize job-matched skills first and render them as compact, pipe-separated plain-text lines rather than visual columns or tables.",
     "experiencePattern": [
       "Company — City, ST",
       "Role Title | Dates",

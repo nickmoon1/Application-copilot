@@ -112,9 +112,10 @@ function buildParagraphXml(paragraph: Paragraph) {
   const size = paragraph.type === "title" ? "24" : "20";
   const indent = paragraph.type === "bullet" ? '<w:ind w:left="360" w:hanging="180"/>' : "";
   const bulletPrefix = paragraph.type === "bullet" ? "• " : "";
+  const keepNext = paragraph.type === "title" || paragraph.type === "heading" || paragraph.bold ? "<w:keepNext/>" : "";
 
   return `<w:p>
-  <w:pPr><w:spacing w:before="${spacing}" w:after="20"/>${indent}</w:pPr>
+  <w:pPr><w:keepLines/>${keepNext}<w:spacing w:before="${spacing}" w:after="20"/>${indent}</w:pPr>
   <w:r>
     <w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="${size}"/>${bold ? "<w:b/>" : ""}</w:rPr>
     <w:t xml:space="preserve">${escapeXml(bulletPrefix + paragraph.text)}</w:t>

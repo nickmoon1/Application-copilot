@@ -202,6 +202,49 @@ const explicitEvidenceDefinitions: EvidenceDefinition[] = [
     sources: ["Customer Prediction Models", "NLP Sentiment Analysis", "CFPB Consumer Complaint Analytics"],
   },
   {
+    label: "Demand Forecasting",
+    aliases: ["demand forecast", "demand forecasting", "passenger demand", "booking behavior", "booking trends", "future booking behavior"],
+    category: "domain",
+    evidence: "Built time-series forecasting and customer prediction workflows using historical behavior and business data; airline passenger-demand forecasting remains transferable rather than direct experience.",
+    matchLevel: "transferable",
+    resumeTerm: "Forecasting and Customer Behavior Analysis",
+    sources: ["Predictive Modeling & Forecasting portfolio project", "Customer Prediction Models"],
+  },
+  {
+    label: "Revenue Performance Analysis",
+    aliases: ["revenue management", "yield management", "revenue performance", "revenue metrics", "yield", "rasm", "load factor"],
+    category: "domain",
+    evidence: "Built KPI dashboards and predictive analyses involving customer spend, financial indicators, and operational performance; direct airline revenue-management ownership is not claimed.",
+    matchLevel: "transferable",
+    resumeTerm: "Performance and Financial Analytics",
+    sources: ["Dallas Data Science Academy", "Customer Prediction Models", "Tableau Dashboards portfolio project"],
+  },
+  {
+    label: "Pricing and Market Analysis",
+    aliases: ["pricing strategy", "pricing actions", "fare trends", "fare structures", "market performance", "market shifts", "market positioning"],
+    category: "domain",
+    evidence: "Conducted financial, customer-behavior, performance, and trend analysis that transfers to pricing and market questions without claiming direct fare-pricing experience.",
+    matchLevel: "transferable",
+    resumeTerm: "Performance, Financial, and Market Trend Analysis",
+    sources: ["Dallas Data Science Academy", "Customer Prediction Models", "Tableau Dashboards portfolio project"],
+  },
+  {
+    label: "Customer Segmentation",
+    aliases: ["customer segmentation", "segment demand", "customer segments", "willingness to pay", "segment and value customers"],
+    category: "domain",
+    evidence: "Built regression and classification models to support customer targeting, spend prediction, and subscription-likelihood analysis.",
+    matchLevel: "transferable",
+    resumeTerm: "Customer Targeting and Predictive Analytics",
+    sources: ["Customer Prediction Models"],
+  },
+  {
+    label: "Strategic Recommendations",
+    aliases: ["strategic recommendations", "present recommendations", "recommend adjustments", "action plans", "communicate insights"],
+    category: "capability",
+    evidence: "Translated analytical findings, trends, and model outputs into recommendations and presentations for technical and non-technical stakeholders.",
+    sources: ["Dallas Data Science Academy", "University of Nebraska-Lincoln", "Tableau Dashboards portfolio project"],
+  },
+  {
     label: "Social and Brand Insights",
     aliases: ["social insight", "social insights", "social listening", "brand protection", "brand monitoring", "brand reputation"],
     category: "domain",
@@ -268,13 +311,19 @@ export function generateApplicationPacket(application: ApplicationDraft) {
 
 function selectStrengths(application: ApplicationDraft) {
   const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+  const normalizedSearchable = normalizeKeywordText(searchable);
+  const roleFamily = classifyRoleTitle(application.role);
   const evidenceUsed = new Set<string>();
   const technicalFit = new Set<string>();
   const projectExamples: string[] = [];
 
   addEvidence("Python, SQL, EDA, data cleaning, feature engineering, and statistical modeling.", evidenceUsed, technicalFit);
 
-  if (searchable.includes("engineer") || searchable.includes("big data") || searchable.includes("data/ai")) {
+  if (
+    roleFamily === "engineering" ||
+    containsNormalizedPhrase(normalizedSearchable, "big data") ||
+    containsNormalizedPhrase(normalizedSearchable, "data ai")
+  ) {
     addEvidence(
       "Maintained real-time transportation data pipelines processing 100+ sensor inputs and resolved 50+ system/data issues with SQL, Python, and Linux.",
       evidenceUsed,
@@ -283,7 +332,12 @@ function selectStrengths(application: ApplicationDraft) {
     addEvidence("Data pipeline, data validation, Azure, Databricks, Snowflake, and Linux exposure.", evidenceUsed, technicalFit);
   }
 
-  if (searchable.includes("scientist") || searchable.includes("ai") || searchable.includes("machine learning")) {
+  if (
+    roleFamily === "data-science" ||
+    containsNormalizedPhrase(normalizedSearchable, "ai") ||
+    containsNormalizedPhrase(normalizedSearchable, "machine learning") ||
+    containsNormalizedPhrase(normalizedSearchable, "artificial intelligence")
+  ) {
     addEvidence("Regression, classification, time series forecasting, NLP, model evaluation, and predictive analytics.", evidenceUsed, technicalFit);
     projectExamples.push("Predictive Modeling & Forecasting: regression, classification, and Prophet time-series modeling in Python.");
     projectExamples.push("NLP Sentiment Analysis: NLTK-based sentiment classification translated into business-friendly metrics.");
@@ -474,6 +528,16 @@ function getCandidateKeywords() {
     "Consumer complaints",
     "Public data",
     "Financial analytics",
+    "ATPCO",
+    "Diio",
+    "Sabre",
+    "Fare filing",
+    "Inventory controls",
+    "Bid price",
+    "Post-implementation analysis",
+    "Competitive pricing",
+    "Competitive landscape",
+    "Economic game theory",
   ].map((keyword) => ({
     label: keyword,
     normalized: normalizeKeywordText(keyword),
@@ -488,9 +552,58 @@ function normalizeKeywordText(value: string) {
   return value
     .toLowerCase()
     .replace(/&/g, " and ")
-    .replace(/[^a-z0-9+#.]+/g, " ")
+    .replace(/[^a-z0-9+#]+/g, " ")
     .replace(/\s+/g, " ")
     .trim();
+}
+
+type RoleFamily = "analyst" | "business-analysis" | "data-science" | "education" | "engineering" | "revenue-analysis";
+
+function classifyRoleTitle(role: string): RoleFamily {
+  const normalizedRole = normalizeKeywordText(role);
+
+  if (
+    ["revenue management", "yield management", "pricing analyst", "revenue analyst", "pricing and yield"].some((term) =>
+      containsNormalizedPhrase(normalizedRole, normalizeKeywordText(term)),
+    )
+  ) {
+    return "revenue-analysis";
+  }
+
+  if (
+    containsNormalizedPhrase(normalizedRole, "data scientist") ||
+    containsNormalizedPhrase(normalizedRole, "machine learning scientist") ||
+    containsNormalizedPhrase(normalizedRole, "applied scientist")
+  ) {
+    return "data-science";
+  }
+
+  if (
+    containsNormalizedPhrase(normalizedRole, "business analyst") ||
+    containsNormalizedPhrase(normalizedRole, "business analytics")
+  ) {
+    return "business-analysis";
+  }
+
+  if (
+    (containsNormalizedPhrase(normalizedRole, "engineer") ||
+      containsNormalizedPhrase(normalizedRole, "engineering") ||
+      containsNormalizedPhrase(normalizedRole, "data solutions")) &&
+    !containsNormalizedPhrase(normalizedRole, "analyst")
+  ) {
+    return "engineering";
+  }
+
+  if (
+    containsNormalizedPhrase(normalizedRole, "professor") ||
+    containsNormalizedPhrase(normalizedRole, "adjunct") ||
+    containsNormalizedPhrase(normalizedRole, "instructor") ||
+    containsNormalizedPhrase(normalizedRole, "lecturer")
+  ) {
+    return "education";
+  }
+
+  return "analyst";
 }
 
 function getLocationReadiness(application: ApplicationDraft) {
@@ -566,17 +679,23 @@ function getQuestionsToVerify(application: ApplicationDraft) {
     "Confirm work location, hybrid/on-site expectations, and commute fit.",
   ];
   const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const normalizedSearchable = normalizeKeywordText(searchable);
+  const roleFamily = classifyRoleTitle(application.role);
   const locationReadiness = getLocationReadiness(application);
 
   if (locationReadiness.reviewRequired) {
     questions.push(locationReadiness.reviewQuestion);
   }
 
-  if (searchable.includes("engineer") || searchable.includes("big data")) {
+  if (roleFamily === "engineering" || containsNormalizedPhrase(normalizedSearchable, "big data")) {
     questions.push("Confirm depth required for production big-data tooling, cloud services, and distributed systems.");
   }
 
-  if (searchable.includes("ai") || searchable.includes("machine learning")) {
+  if (
+    roleFamily === "data-science" ||
+    containsNormalizedPhrase(normalizedSearchable, "ai") ||
+    containsNormalizedPhrase(normalizedSearchable, "machine learning")
+  ) {
     questions.push("Confirm whether the role expects production ML/AI ownership or analytics/modeling support.");
   }
 
@@ -877,7 +996,7 @@ ${summary}
 
 ## ${competenciesHeading}
 
-${targetAlignment.map((item) => `- ${item}`).join("\n")}
+${formatCompetencyLines(targetAlignment)}
 
 ## PROFESSIONAL EXPERIENCE
 
@@ -943,25 +1062,23 @@ ${answerStyle.resumeFormatProfile.experiencePattern.map((item) => `- ${item}`).j
 }
 
 function getResumeHeadline(application: ApplicationDraft) {
-  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const roleFamily = classifyRoleTitle(application.role);
 
-  if (searchable.includes("engineer") || searchable.includes("data solutions")) {
-    return "DATA ENGINEERING | ANALYTICS";
+  switch (roleFamily) {
+    case "revenue-analysis":
+      return "DATA ANALYTICS | FORECASTING | BUSINESS INTELLIGENCE";
+    case "engineering":
+      return "DATA ENGINEERING | ANALYTICS";
+    case "data-science":
+      return "DATA SCIENCE | ANALYTICS";
+    case "business-analysis":
+      return "BUSINESS ANALYTICS | DATA ANALYSIS";
+    case "education":
+      return "DATA SCIENCE | ANALYTICS EDUCATION";
+    case "analyst":
+    default:
+      return "ANALYST | BUSINESS ANALYTICS | DATA REPORTING";
   }
-
-  if (isAnalystReportingRole(application)) {
-    return "ANALYST | BUSINESS ANALYTICS | DATA REPORTING";
-  }
-
-  if (searchable.includes("scientist") || searchable.includes("machine learning") || searchable.includes("ai")) {
-    return "DATA SCIENCE | ANALYTICS";
-  }
-
-  if (searchable.includes("business")) {
-    return "BUSINESS ANALYTICS | DATA ANALYSIS";
-  }
-
-  return "ANALYST | BUSINESS ANALYTICS | DATA REPORTING";
 }
 
 function getResumeSummary(
@@ -969,7 +1086,7 @@ function getResumeSummary(
   strengths: ReturnType<typeof selectStrengths>,
   keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
-  const searchable = `${application.role} ${application.notes}`.toLowerCase();
+  const roleFamily = classifyRoleTitle(application.role);
   const analystTools = getToolListForSummary(application);
   const matchedCapabilities = dedupeResumeTerms(
     keywordGate.evidenceMatches
@@ -985,9 +1102,9 @@ function getResumeSummary(
     return `Business Analytics professional with experience transforming operational and business data into actionable insights through ${analystTools}. Brings demonstrated experience in ${capabilityPhrase}, with a practical focus on reliable analysis and decision-ready reporting. Communicates analytical findings to technical and non-technical stakeholders and collaborates across teams to support operational improvement.`;
   }
 
-  const focus = searchable.includes("engineer")
+  const focus = roleFamily === "engineering"
     ? "data engineering, analytics workflows, data validation, and operational reporting"
-    : searchable.includes("scientist") || searchable.includes("ai")
+    : roleFamily === "data-science"
       ? "data science, predictive analytics, dashboarding, and stakeholder-facing insights"
       : "business analytics, SQL analysis, reporting, dashboards, and stakeholder-facing problem solving";
 
@@ -1087,7 +1204,28 @@ function getTargetRoleAlignment(
     "Cross-functional Collaboration",
   ];
 
-  return dedupeResumeTerms([...jobMatchedCompetencies, ...matchedSkills, ...competencyFallback]).slice(0, 14);
+  return dedupeResumeTerms([...jobMatchedCompetencies, ...matchedSkills, ...competencyFallback]).slice(0, 12);
+}
+
+function formatCompetencyLines(competencies: string[]) {
+  const maxLineLength = 88;
+  const lines: string[] = [];
+  let currentLine: string[] = [];
+
+  for (const competency of competencies) {
+    const nextLine = [...currentLine, competency].join(" | ");
+
+    if (currentLine.length > 0 && nextLine.length > maxLineLength) {
+      lines.push(currentLine.join(" | "));
+      currentLine = [competency];
+    } else {
+      currentLine.push(competency);
+    }
+  }
+
+  if (currentLine.length > 0) lines.push(currentLine.join(" | "));
+
+  return lines.join("\n");
 }
 
 function buildResumeExperienceBlock(
@@ -1247,6 +1385,7 @@ function getSelectedResumeProjects(
 
   return [...profile.projects]
     .map((project) => {
+      const businessFitScore = getProjectBusinessFitScore(project, application);
       const sourceScore = keywordGate.evidenceMatches.reduce((score, match) => {
         const projectIsSource = match.sources.some(
           (source) =>
@@ -1264,12 +1403,57 @@ function getSelectedResumeProjects(
 
       return {
         ...project,
+        businessFitScore,
         relevanceScore: sourceScore + contentScore,
       };
     })
-    .sort((left, right) => right.relevanceScore - left.relevanceScore)
+    .sort(
+      (left, right) =>
+        right.businessFitScore - left.businessFitScore ||
+        right.relevanceScore - left.relevanceScore,
+    )
     .slice(0, 2)
     .map(({ name, summary }) => ({ name, summary }));
+}
+
+function getProjectBusinessFitScore(
+  project: { name: string; summary: string },
+  application: ApplicationDraft,
+) {
+  const job = normalizeKeywordText(`${application.role} ${application.notes}`);
+  const projectText = normalizeKeywordText(`${project.name} ${project.summary}`);
+  const isRevenueRole = [
+    "revenue management",
+    "yield management",
+    "pricing",
+    "passenger demand",
+    "booking behavior",
+  ].some((signal) => containsNormalizedPhrase(job, normalizeKeywordText(signal)));
+
+  if (isRevenueRole) {
+    if (containsNormalizedPhrase(projectText, "customer prediction")) return 70;
+    if (containsNormalizedPhrase(projectText, "tableau dashboards")) return 55;
+    if (containsNormalizedPhrase(projectText, "predictive modeling and forecasting")) return 50;
+    if (containsNormalizedPhrase(projectText, "cfpb")) return 0;
+  }
+
+  const isSocialInsightsRole = ["social insight", "brand protection", "social listening", "customer sentiment"].some(
+    (signal) => containsNormalizedPhrase(job, normalizeKeywordText(signal)),
+  );
+
+  if (isSocialInsightsRole) {
+    if (containsNormalizedPhrase(projectText, "nlp sentiment analysis")) return 70;
+    if (containsNormalizedPhrase(projectText, "customer prediction")) return 55;
+    if (containsNormalizedPhrase(projectText, "tableau dashboards")) return 40;
+  }
+
+  const isFinancialRiskRole = ["credit", "banking", "consumer complaint", "financial risk"].some((signal) =>
+    containsNormalizedPhrase(job, normalizeKeywordText(signal)),
+  );
+
+  if (isFinancialRiskRole && containsNormalizedPhrase(projectText, "cfpb")) return 70;
+
+  return 0;
 }
 
 function getResumeSkillGroups(matchedSkills: string[]) {
