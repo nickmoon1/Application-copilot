@@ -13,6 +13,219 @@ type ApplicationDraft = {
   createdAt: string;
 };
 
+type EvidenceMatchLevel = "direct" | "transferable";
+
+type EvidenceDefinition = {
+  aliases: string[];
+  category: "capability" | "domain" | "tool";
+  evidence: string;
+  label: string;
+  matchLevel?: EvidenceMatchLevel;
+  resumeTerm?: string;
+  sources: string[];
+};
+
+type EvidenceMatch = EvidenceDefinition & {
+  jobTerms: string[];
+  matchLevel: EvidenceMatchLevel;
+};
+
+const explicitEvidenceDefinitions: EvidenceDefinition[] = [
+  {
+    label: "SQL",
+    aliases: ["sql", "structured query language"],
+    category: "tool",
+    evidence: "Used SQL for exploratory analysis, operational troubleshooting, data validation, and reporting.",
+    sources: ["Dallas Data Science Academy", "Thales Group", "University of Nebraska-Lincoln"],
+  },
+  {
+    label: "Python",
+    aliases: ["python"],
+    category: "tool",
+    evidence: "Built analytical workflows and used Python for modeling, data preparation, teaching, and operational analysis.",
+    sources: ["Dallas Data Science Academy", "Thales Group", "University of Nebraska-Lincoln", "Benedict College"],
+  },
+  {
+    label: "Excel",
+    aliases: ["excel", "microsoft excel", "spreadsheets"],
+    category: "tool",
+    evidence: "Used Excel in business and research analysis workflows and reporting.",
+    sources: ["Dallas Data Science Academy", "University of Nebraska-Lincoln"],
+  },
+  {
+    label: "Power BI",
+    aliases: ["power bi", "powerbi"],
+    category: "tool",
+    evidence: "Developed KPI reporting and dashboard work using Power BI.",
+    sources: ["Dallas Data Science Academy"],
+  },
+  {
+    label: "Tableau",
+    aliases: ["tableau"],
+    category: "tool",
+    evidence: "Designed dashboards that communicated trends, forecasts, and KPIs to non-technical stakeholders.",
+    sources: ["Dallas Data Science Academy", "Tableau Dashboards portfolio project"],
+  },
+  {
+    label: "Dashboard Development",
+    aliases: ["dashboard", "dashboards", "data visualization", "visualization"],
+    category: "capability",
+    evidence: "Built KPI, trend, and forecast dashboards for business-facing and non-technical audiences.",
+    sources: ["Dallas Data Science Academy", "Tableau Dashboards portfolio project"],
+  },
+  {
+    label: "KPI Reporting",
+    aliases: ["kpi", "kpis", "performance metrics", "performance reporting", "metrics reporting"],
+    category: "capability",
+    evidence: "Developed KPI-oriented dashboards and reporting summaries to make performance patterns easier to use.",
+    sources: ["Dallas Data Science Academy", "Tableau Dashboards portfolio project"],
+  },
+  {
+    label: "Reporting",
+    aliases: ["reporting", "reports", "analytical summaries", "technical reports"],
+    category: "capability",
+    evidence: "Prepared dashboards, analytical summaries, presentations, and technical reports for business, research, and operational decisions.",
+    sources: ["Dallas Data Science Academy", "Thales Group", "University of Nebraska-Lincoln"],
+  },
+  {
+    label: "Trend Analysis",
+    aliases: ["trend analysis", "trends", "pattern analysis"],
+    category: "capability",
+    evidence: "Conducted trend analysis across business, research, financial, and operational datasets.",
+    sources: ["Dallas Data Science Academy", "University of Nebraska-Lincoln", "CFPB Consumer Complaint Analytics"],
+  },
+  {
+    label: "Data Validation",
+    aliases: ["data validation", "validation", "quality assurance", "qa checks"],
+    category: "capability",
+    evidence: "Performed structured validation, quality checks, and troubleshooting across operational and research datasets.",
+    sources: ["Thales Group", "University of Nebraska-Lincoln"],
+  },
+  {
+    label: "Data Quality",
+    aliases: ["data quality", "data integrity", "data accuracy", "quality checks"],
+    category: "capability",
+    evidence: "Improved processing and reporting reliability through structured cleaning, validation, and quality checks.",
+    sources: ["Thales Group", "University of Nebraska-Lincoln"],
+  },
+  {
+    label: "Process Improvement",
+    aliases: ["process improvement", "continuous improvement", "streamline", "efficiency improvement"],
+    category: "capability",
+    evidence: "Improved data processing efficiency by 30% and supported operational issue resolution and reliability improvements.",
+    sources: ["University of Nebraska-Lincoln", "Thales Group"],
+  },
+  {
+    label: "Stakeholder Communication",
+    aliases: ["stakeholder", "stakeholders", "communication", "communicate", "communicating", "presentations", "business partners"],
+    category: "capability",
+    evidence: "Prepared findings for faculty, business, technical, and non-technical stakeholders and mentored students on applied projects.",
+    sources: ["University of Nebraska-Lincoln", "Dallas Data Science Academy", "Benedict College"],
+  },
+  {
+    label: "Cross-functional Collaboration",
+    aliases: ["cross functional", "cross-functional", "collaboration", "collaborate", "partner with"],
+    category: "capability",
+    evidence: "Collaborated with interdisciplinary and cross-functional teams in transportation, research, analytics, and education settings.",
+    sources: ["Thales Group", "University of Nebraska-Lincoln", "Benedict College"],
+  },
+  {
+    label: "Root Cause Analysis",
+    aliases: ["root cause", "troubleshoot", "troubleshooting", "issue resolution", "problem solving"],
+    category: "capability",
+    evidence: "Diagnosed and resolved more than 50 system and data issues using SQL, Python, and Linux.",
+    sources: ["Thales Group"],
+  },
+  {
+    label: "Operational Analysis",
+    aliases: ["operational analysis", "operations analysis", "operational performance", "system performance"],
+    category: "capability",
+    evidence: "Analyzed transportation system performance and operational data across more than 100 real-time sensor inputs.",
+    sources: ["Thales Group"],
+  },
+  {
+    label: "Data Pipelines",
+    aliases: ["data pipeline", "data pipelines", "pipeline", "pipelines"],
+    category: "capability",
+    evidence: "Maintained real-time transportation data pipelines processing more than 100 sensor inputs and built analytical workflows.",
+    sources: ["Thales Group", "Dallas Data Science Academy"],
+  },
+  {
+    label: "ETL",
+    aliases: ["etl", "extract transform load"],
+    category: "capability",
+    evidence: "Data-pipeline and data-preparation experience is transferable to ETL work, but the profile does not claim ownership of a formal ETL platform.",
+    matchLevel: "transferable",
+    resumeTerm: "Data Pipelines and Data Preparation",
+    sources: ["Thales Group", "Dallas Data Science Academy"],
+  },
+  {
+    label: "Forecasting",
+    aliases: ["forecast", "forecasting", "time series", "time-series"],
+    category: "capability",
+    evidence: "Built Prophet time-series and other forecasting workflows on historical business data.",
+    sources: ["Predictive Modeling & Forecasting portfolio project"],
+  },
+  {
+    label: "Predictive Analytics",
+    aliases: ["predictive", "predictive analytics", "prediction", "predictive modeling"],
+    category: "capability",
+    evidence: "Built regression and classification models to predict customer spend and subscription likelihood.",
+    sources: ["Dallas Data Science Academy", "Customer Prediction Models portfolio project"],
+  },
+  {
+    label: "Statistical Analysis",
+    aliases: ["statistical", "statistics", "statistical analysis", "statistical modeling"],
+    category: "capability",
+    evidence: "Applied statistical methods, regression, classification, and model evaluation in graduate and portfolio work.",
+    sources: ["University of Nebraska-Lincoln", "Predictive Modeling & Forecasting portfolio project"],
+  },
+  {
+    label: "Machine Learning",
+    aliases: ["machine learning", "ml model", "model development"],
+    category: "capability",
+    evidence: "Built and evaluated regression, classification, NLP, forecasting, and PyTorch-supported workflows.",
+    sources: ["Dallas Data Science Academy", "Graduate and portfolio projects"],
+  },
+  {
+    label: "Sentiment Analysis",
+    aliases: ["sentiment", "sentiment analysis", "customer sentiment"],
+    category: "capability",
+    evidence: "Used NLTK to classify customer-review sentiment and translate outputs into business-friendly metrics.",
+    sources: ["NLP Sentiment Analysis portfolio project"],
+  },
+  {
+    label: "Customer Insights",
+    aliases: ["customer insights", "consumer insights", "customer behavior", "customer analytics", "voice of customer"],
+    category: "domain",
+    evidence: "Analyzed customer behavior, subscription likelihood, spend, sentiment, and consumer complaint patterns.",
+    sources: ["Customer Prediction Models", "NLP Sentiment Analysis", "CFPB Consumer Complaint Analytics"],
+  },
+  {
+    label: "Social and Brand Insights",
+    aliases: ["social insight", "social insights", "social listening", "brand protection", "brand monitoring", "brand reputation"],
+    category: "domain",
+    evidence: "Customer sentiment and text-analysis work is transferable to social and brand insight analysis, but does not establish direct social-listening platform experience.",
+    matchLevel: "transferable",
+    resumeTerm: "Sentiment Analysis and Customer Insights",
+    sources: ["NLP Sentiment Analysis portfolio project"],
+  },
+  {
+    label: "Financial Analytics",
+    aliases: ["financial analytics", "financial analysis", "financial data", "financial indicators"],
+    category: "domain",
+    evidence: "Built a CFPB complaint analytics workflow and completed predictive work involving financial indicators.",
+    sources: ["CFPB Consumer Complaint Analytics", "Dallas Data Science Academy"],
+  },
+  {
+    label: "Public Data Analysis",
+    aliases: ["public data", "public dataset", "government data", "consumer complaints", "cfpb"],
+    category: "domain",
+    evidence: "Built a documented analytics workflow using the real CFPB Consumer Complaint Database.",
+    sources: ["CFPB Consumer Complaint Analytics"],
+  },
+];
+
 export function generateApplicationPacket(application: ApplicationDraft) {
   const strengths = selectStrengths(application);
   const keywordGate = buildKeywordGate(application);
@@ -43,7 +256,7 @@ export function generateApplicationPacket(application: ApplicationDraft) {
 
   return {
     answers: JSON.stringify(answerDrafts, null, 2),
-    coverLetter: buildCoverLetter(application, strengths),
+    coverLetter: buildCoverLetter(application, strengths, keywordGate),
     checklist: buildChecklist(application, questionsToVerify, locationReadiness),
     keywordReport: buildKeywordReport(application, keywordGate),
     reviewNotes: buildReviewNotes(application, strengths, questionsToVerify, keywordGate, locationReadiness),
@@ -123,66 +336,103 @@ function addEvidence(value: string, evidenceUsed: Set<string>, technicalFit: Set
 
 function buildKeywordGate(application: ApplicationDraft) {
   const searchable = normalizeKeywordText(`${application.role} ${application.notes} ${application.source} ${application.jobUrl}`);
-  const approvedKeywords = getApprovedKeywordMap();
-  const detectedKeywords = getCandidateKeywords().filter((keyword) => searchable.includes(keyword.normalized));
-  const verifiedKeywords = detectedKeywords
-    .filter((keyword) => approvedKeywords.has(keyword.normalized))
-    .map((keyword) => approvedKeywords.get(keyword.normalized) ?? keyword.label);
-  const heldBackKeywords = detectedKeywords
-    .filter((keyword) => !approvedKeywords.has(keyword.normalized))
+  const evidenceMatches = getEvidenceMatches(application, searchable);
+  const matchedAliases = new Set(
+    evidenceMatches.flatMap((match) => [match.label, match.resumeTerm, ...match.aliases].filter(Boolean).map((value) => normalizeKeywordText(value!))),
+  );
+  const detectedCandidates = getCandidateKeywords().filter((keyword) => containsNormalizedPhrase(searchable, keyword.normalized));
+  const heldBackKeywords = detectedCandidates
+    .filter((keyword) => !matchedAliases.has(keyword.normalized))
     .map((keyword) => keyword.label);
+  const directMatches = evidenceMatches.filter((match) => match.matchLevel === "direct");
+  const transferableMatches = evidenceMatches.filter((match) => match.matchLevel === "transferable");
+  const verifiedKeywords = directMatches.map((match) => match.resumeTerm ?? match.label);
+  const relatedKeywords = transferableMatches.map((match) => match.resumeTerm ?? match.label);
+  const detectedKeywords = [
+    ...evidenceMatches.map((match) => match.label),
+    ...detectedCandidates.map((keyword) => keyword.label),
+  ];
   const uniqueVerifiedKeywords = Array.from(new Set(verifiedKeywords));
+  const uniqueRelatedKeywords = Array.from(new Set(relatedKeywords));
   const uniqueHeldBackKeywords = Array.from(new Set(heldBackKeywords));
+  const uniqueDetectedKeywords = Array.from(new Set(detectedKeywords));
   const coveragePercent =
-    detectedKeywords.length > 0 ? Math.round((uniqueVerifiedKeywords.length / detectedKeywords.length) * 100) : 100;
+    uniqueDetectedKeywords.length > 0
+      ? Math.round(((uniqueVerifiedKeywords.length + uniqueRelatedKeywords.length * 0.5) / uniqueDetectedKeywords.length) * 100)
+      : 100;
 
   return {
-    detectedKeywords: Array.from(new Set(detectedKeywords.map((keyword) => keyword.label))),
+    detectedKeywords: uniqueDetectedKeywords,
+    evidenceMatches,
     verifiedKeywords: uniqueVerifiedKeywords,
+    relatedKeywords: uniqueRelatedKeywords,
     heldBackKeywords: uniqueHeldBackKeywords,
     coveragePercent,
   };
 }
 
-function getApprovedKeywordMap() {
-  const approved = new Map<string, string>();
-  const skills = Object.values(profile.skills).flat();
+function getEvidenceMatches(application: ApplicationDraft, searchable: string): EvidenceMatch[] {
+  const definitions = getEvidenceDefinitions();
 
-  for (const skill of skills) {
-    approved.set(normalizeKeywordText(skill), skill);
-  }
+  return definitions
+    .map((definition) => {
+      const jobTerms = definition.aliases.filter((alias) =>
+        containsNormalizedPhrase(searchable, normalizeKeywordText(alias)),
+      );
 
-  const aliases: Record<string, string> = {
-    "scikit learn": "Scikit-learn",
-    sklearn: "Scikit-learn",
-    "time series": "Time Series Forecasting",
-    forecast: "Forecasting",
-    forecasting: "Forecasting",
-    dashboard: "Dashboard Development",
-    dashboards: "Dashboard Development",
-    "data quality": "Data Quality Checks",
-    "data validation": "Data Validation",
-    "statistical modelling": "Statistical Modeling",
-    "statistical modeling": "Statistical Modeling",
-    "machine learning": "Model Evaluation",
-    "ml": "Model Evaluation",
-    "business intelligence": "Dashboard Development",
-    "kpi": "KPI Reporting",
-    "kpis": "KPI Reporting",
-    "powerbi": "Power BI",
-    "sqlite": "SQLite",
-    "financial analytics": "Financial Analytics",
-    "public data": "Public Data Analysis",
-    "public dataset": "Public Data Analysis",
-  };
+      return {
+        ...definition,
+        jobTerms,
+        matchLevel: definition.matchLevel ?? "direct",
+      };
+    })
+    .filter((match) => match.jobTerms.length > 0)
+    .sort((left, right) => scoreEvidenceMatch(right, application) - scoreEvidenceMatch(left, application));
+}
 
-  for (const [alias, skill] of Object.entries(aliases)) {
-    if (skills.includes(skill)) {
-      approved.set(normalizeKeywordText(alias), skill);
-    }
-  }
+function getEvidenceDefinitions() {
+  const explicitTerms = new Set(
+    explicitEvidenceDefinitions.flatMap((definition) =>
+      [definition.label, ...definition.aliases].map((value) => normalizeKeywordText(value)),
+    ),
+  );
+  const profileSkillDefinitions: EvidenceDefinition[] = Object.values(profile.skills)
+    .flat()
+    .filter((skill) => !explicitTerms.has(normalizeKeywordText(skill)))
+    .map((skill) => ({
+      label: skill,
+      aliases: [skill],
+      category: "tool" as const,
+      evidence: `${skill} is listed in the reviewed candidate profile. Confirm the strongest project or work example before discussing depth.`,
+      sources: ["Verified candidate profile skills"],
+    }));
 
-  return approved;
+  return [...explicitEvidenceDefinitions, ...profileSkillDefinitions];
+}
+
+function scoreEvidenceMatch(match: EvidenceMatch, application: ApplicationDraft) {
+  const role = normalizeKeywordText(application.role);
+  const notes = normalizeKeywordText(application.notes);
+  const roleScore = match.aliases.some((alias) => containsNormalizedPhrase(role, normalizeKeywordText(alias))) ? 8 : 0;
+  const noteScore = match.jobTerms.reduce(
+    (score, term) => score + countNormalizedPhrase(notes, normalizeKeywordText(term)) * 2,
+    0,
+  );
+  const directScore = match.matchLevel === "direct" ? 2 : 0;
+
+  return roleScore + noteScore + directScore;
+}
+
+function containsNormalizedPhrase(searchable: string, phrase: string) {
+  if (!phrase) return false;
+
+  return ` ${searchable} `.includes(` ${phrase} `);
+}
+
+function countNormalizedPhrase(searchable: string, phrase: string) {
+  if (!phrase) return 0;
+
+  return ` ${searchable} `.split(` ${phrase} `).length - 1;
 }
 
 function getCandidateKeywords() {
@@ -365,10 +615,19 @@ function isAmericanAirlinesStyleRole(application: ApplicationDraft) {
   );
 }
 
-function buildCoverLetter(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
+function buildCoverLetter(
+  application: ApplicationDraft,
+  strengths: ReturnType<typeof selectStrengths>,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
   const portfolioCaseStudy = getPortfolioCaseStudy(application);
   const locationReadiness = getLocationReadiness(application);
   const useAnalystTone = isAnalystReportingRole(application);
+  const roleSignals = getRoleSignalLabels(keywordGate, 4);
+  const evidenceExamples = [...keywordGate.evidenceMatches]
+    .filter((match) => match.matchLevel === "direct")
+    .sort((left, right) => scoreCoverLetterEvidence(right) - scoreCoverLetterEvidence(left))
+    .slice(0, 2);
   const transportationBridge = isAmericanAirlinesStyleRole(application)
     ? " Working within a highly regulated transportation environment taught me the importance of accuracy, accountability, timely reporting, and cross-functional communication."
     : "";
@@ -379,6 +638,8 @@ function buildCoverLetter(application: ApplicationDraft, strengths: ReturnType<t
 Dear Hiring Manager,
 
 I am excited to apply for the ${application.role} position with ${application.company}. As a Business Analytics professional with graduate-level education in Computer Science and Information Systems & Business Analytics, I have built a strong foundation in transforming operational and business data into meaningful insights. My experience includes using SQL, Python, Excel, Tableau, and Power BI to improve reporting, analyze performance, validate data, and support data-driven decision making.
+
+${roleSignals.length > 0 ? `The position's emphasis on ${formatNaturalList(roleSignals)} is especially relevant to my background. ${evidenceExamples.map((match) => match.evidence).join(" ")}` : ""}
 
 Most recently, I have completed business analytics and data science projects where I designed reporting workflows, developed KPI-focused dashboards, conducted trend analysis, and presented recommendations to technical and non-technical stakeholders. These experiences strengthened my ability to communicate analytical findings in ways that support business strategy and operational improvement.
 
@@ -420,6 +681,43 @@ ${profile.links.portfolio}
 `;
 }
 
+function getRoleSignalLabels(keywordGate: ReturnType<typeof buildKeywordGate>, limit: number) {
+  return dedupeResumeTerms(keywordGate.evidenceMatches.map((match) => match.resumeTerm ?? match.label)).slice(0, limit);
+}
+
+function scoreCoverLetterEvidence(match: EvidenceMatch) {
+  const projectScore = match.sources.some((source) => source.toLowerCase().includes("project")) ? 6 : 0;
+  const specificityScore = /\d/.test(match.evidence) ? 3 : 0;
+  const categoryScore = match.category === "domain" ? 4 : match.category === "capability" ? 2 : 0;
+
+  return projectScore + specificityScore + categoryScore;
+}
+
+function formatNaturalList(values: string[]) {
+  if (values.length <= 1) return values[0] ?? "";
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+
+  return `${values.slice(0, -1).join(", ")}, and ${values[values.length - 1]}`;
+}
+
+function dedupeResumeTerms(values: string[]) {
+  return values.reduce<string[]>((terms, value) => {
+    const normalizedValue = normalizeKeywordText(value);
+    const broaderTermIndex = terms.findIndex((term) =>
+      containsNormalizedPhrase(normalizeKeywordText(term), normalizedValue),
+    );
+
+    if (broaderTermIndex >= 0) return terms;
+
+    return [
+      ...terms.filter(
+        (term) => !containsNormalizedPhrase(normalizedValue, normalizeKeywordText(term)),
+      ),
+      value,
+    ];
+  }, []);
+}
+
 function buildChecklist(
   application: ApplicationDraft,
   questionsToVerify: string[],
@@ -454,6 +752,13 @@ ${questionsToVerify.map((question) => `- [ ] ${question}`).join("\n")}
 }
 
 function buildKeywordReport(application: ApplicationDraft, keywordGate: ReturnType<typeof buildKeywordGate>) {
+  const evidenceRows = keywordGate.evidenceMatches.map((match) => {
+    const status = match.matchLevel === "direct" ? "Supported" : "Transferable";
+    const resumeTerm = match.resumeTerm ?? match.label;
+
+    return `| ${match.jobTerms.join(", ")} | ${status} | ${resumeTerm} | ${match.evidence} | ${match.sources.join("; ")} |`;
+  });
+
   return `# Keyword Match Report
 
 This report explains which role keywords were allowed into the application packet and which were held back for human review.
@@ -469,18 +774,31 @@ This report explains which role keywords were allowed into the application packe
 
 ${keywordGate.verifiedKeywords.length > 0 ? keywordGate.verifiedKeywords.map((keyword) => `- ${keyword}`).join("\n") : "- None detected"}
 
+## Related Experience Used Carefully
+
+${keywordGate.relatedKeywords.length > 0 ? keywordGate.relatedKeywords.map((keyword) => `- ${keyword}`).join("\n") : "- None detected"}
+
 ## Detected But Held Back
 
 ${keywordGate.heldBackKeywords.length > 0 ? keywordGate.heldBackKeywords.map((keyword) => `- ${keyword}`).join("\n") : "- None"}
+
+## Evidence Map
+
+| Job wording | Status | Resume wording | Supporting evidence | Source |
+| --- | --- | --- | --- | --- |
+${evidenceRows.length > 0 ? evidenceRows.join("\n") : "| None detected | Review needed | None | The posting did not provide enough readable detail. | Job URL analysis |"}
 
 ## Coverage
 
 - Detected job keywords: ${keywordGate.detectedKeywords.length}
 - Verified keyword matches: ${keywordGate.verifiedKeywords.length}
+- Transferable keyword matches: ${keywordGate.relatedKeywords.length}
 - Coverage: ${keywordGate.coveragePercent}%
 
 ## Notes
 
+- Supported terms may be used directly because the profile contains concrete evidence.
+- Transferable terms use narrower resume wording and must not imply direct platform or domain experience.
 - Held-back keywords should not be added to the resume unless you can truthfully defend them in an interview.
 - If a held-back keyword is a tool you have used, add it to the approved profile evidence before generating the next packet.
 - If a held-back keyword is only adjacent to your experience, keep it in review notes or learning gaps instead of the resume.
@@ -505,6 +823,7 @@ ${strengths.evidenceUsed.map((item) => `- ${item}`).join("\n")}
 ## Truthful Keyword Gate
 
 - Verified keywords included: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
+- Related keywords phrased as transferable experience: ${keywordGate.relatedKeywords.join(", ") || "None"}
 - Detected but not included without review: ${keywordGate.heldBackKeywords.join(", ") || "None"}
 - Resume match coverage: ${keywordGate.coveragePercent}%
 
@@ -538,9 +857,10 @@ function buildResumeTailoring(
   const matchedSkills = getMatchedSkills(application, keywordGate);
   const prioritizedExperience = getPrioritizedExperience();
   const headline = getResumeHeadline(application);
-  const summary = getResumeSummary(application, strengths);
+  const summary = getResumeSummary(application, strengths, keywordGate);
   const skillGroups = getResumeSkillGroups(matchedSkills);
-  const targetAlignment = getTargetRoleAlignment(matchedSkills, strengths);
+  const targetAlignment = getTargetRoleAlignment(matchedSkills, keywordGate);
+  const selectedProjects = getSelectedResumeProjects(application, keywordGate);
   const locationReadiness = getLocationReadiness(application);
   const competenciesHeading = isAnalystReportingRole(application) ? "CORE COMPETENCIES" : "ROLE ALIGNMENT and CORE COMPETENCIES";
 
@@ -561,7 +881,11 @@ ${targetAlignment.map((item) => `- ${item}`).join("\n")}
 
 ## PROFESSIONAL EXPERIENCE
 
-${prioritizedExperience.map((item) => buildResumeExperienceBlock(item, application)).join("\n\n")}
+${prioritizedExperience.map((item) => buildResumeExperienceBlock(item, application, keywordGate)).join("\n\n")}
+
+## SELECTED PROJECTS
+
+${selectedProjects.map((project) => `### ${project.name}\n- ${project.summary}`).join("\n\n")}
 
 ## EDUCATION
 
@@ -592,6 +916,7 @@ This resume draft follows the user's July resume structure, updated from the Ame
 - Match score: ${application.matchScore}%
 - Evidence emphasized: ${strengths.evidenceUsed.join(" ")}
 - Verified keywords emphasized: ${keywordGate.verifiedKeywords.join(", ") || "None detected"}
+- Transferable wording used carefully: ${keywordGate.relatedKeywords.join(", ") || "None"}
 - Keywords held for review: ${keywordGate.heldBackKeywords.join(", ") || "None"}
 - Keyword coverage: ${keywordGate.coveragePercent}%
 - Location readiness: ${locationReadiness.summary}
@@ -639,12 +964,25 @@ function getResumeHeadline(application: ApplicationDraft) {
   return "ANALYST | BUSINESS ANALYTICS | DATA REPORTING";
 }
 
-function getResumeSummary(application: ApplicationDraft, strengths: ReturnType<typeof selectStrengths>) {
+function getResumeSummary(
+  application: ApplicationDraft,
+  strengths: ReturnType<typeof selectStrengths>,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
   const searchable = `${application.role} ${application.notes}`.toLowerCase();
   const analystTools = getToolListForSummary(application);
+  const matchedCapabilities = dedupeResumeTerms(
+    keywordGate.evidenceMatches
+      .filter((match) => match.category !== "tool")
+      .map((match) => match.resumeTerm ?? match.label),
+  ).slice(0, 5);
+  const capabilityPhrase =
+    matchedCapabilities.length > 0
+      ? formatNaturalList(matchedCapabilities)
+      : "performance reporting, dashboard development, data validation, and stakeholder communication";
 
   if (isAnalystReportingRole(application)) {
-    return `Business Analytics professional with experience transforming operational and business data into actionable insights through ${analystTools}. Skilled in performance reporting, KPI development, dashboard creation, process improvement, and communicating analytical findings to technical and non-technical stakeholders. Experienced collaborating across cross-functional teams to improve operational performance, streamline reporting processes, and support data-driven decision making.`;
+    return `Business Analytics professional with experience transforming operational and business data into actionable insights through ${analystTools}. Brings demonstrated experience in ${capabilityPhrase}, with a practical focus on reliable analysis and decision-ready reporting. Communicates analytical findings to technical and non-technical stakeholders and collaborates across teams to support operational improvement.`;
   }
 
   const focus = searchable.includes("engineer")
@@ -737,45 +1075,19 @@ function getPortfolioCaseStudy(application: ApplicationDraft) {
   };
 }
 
-function getTargetRoleAlignment(matchedSkills: string[], strengths: ReturnType<typeof selectStrengths>) {
-  const skillEvidence: Record<string, string> = {
-    "Power BI": "Power BI",
-    Tableau: "Tableau",
-    Excel: "Microsoft Excel",
-    SQL: "SQL",
-    Python: "Python",
-    Forecasting: "Completed forecasting and predictive analytics projects tied to customer behavior, operations, and financial indicators.",
-    "KPI Reporting": "Developed KPI-oriented dashboards and reporting summaries for non-technical stakeholders.",
-    "Data Validation": "Performed data validation, quality checks, and troubleshooting across research and operational datasets.",
-    "Data Quality Checks": "Improved processing and reporting reliability through structured cleaning, validation, and QA checks.",
-    "Dashboard Development": "Built dashboards and reporting tools to make technical analysis easier for stakeholders to use.",
-    "Predictive Analytics": "Developed predictive models and communicated results through practical business recommendations.",
-  };
-
-  const alignedSkills = matchedSkills
-    .map((skill) => skillEvidence[skill])
-    .filter((evidence): evidence is string => Boolean(evidence));
+function getTargetRoleAlignment(
+  matchedSkills: string[],
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
+  const jobMatchedCompetencies = keywordGate.evidenceMatches.map((match) => match.resumeTerm ?? match.label);
   const competencyFallback = [
     "Business Analytics",
-    "Performance Reporting",
-    "KPI Development",
-    "Dashboard Design",
-    "Data Visualization",
-    "SQL",
-    "Python",
-    "Power BI",
-    "Tableau",
-    "Microsoft Excel",
-    "Data Validation",
-    "Process Improvement",
+    "Data Analysis",
     "Stakeholder Communication",
-    "Root Cause Analysis",
-    "Business Intelligence",
-    "Forecasting",
-    "Statistical Analysis",
+    "Cross-functional Collaboration",
   ];
 
-  return Array.from(new Set([...alignedSkills, ...competencyFallback])).slice(0, 18);
+  return dedupeResumeTerms([...jobMatchedCompetencies, ...matchedSkills, ...competencyFallback]).slice(0, 14);
 }
 
 function buildResumeExperienceBlock(
@@ -787,11 +1099,12 @@ function buildResumeExperienceBlock(
     focus: string[];
   },
   application: ApplicationDraft,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   return [
     `### ${item.organization} - ${item.location}`,
     `**${[item.role, item.dates].filter(Boolean).join(" | ")}**`,
-    ...getExperienceBullets(item, application).map((bullet) => `- ${bullet}`),
+    ...getExperienceBullets(item, application, keywordGate).map((bullet) => `- ${bullet}`),
   ].join("\n");
 }
 
@@ -802,9 +1115,9 @@ function getExperienceBullets(
     focus: string[];
   },
   application: ApplicationDraft,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   const organization = item.organization.toLowerCase();
-  const searchable = `${application.role} ${application.notes}`.toLowerCase();
 
   if (organization.includes("data science academy")) {
     return prioritizeBullets(
@@ -816,7 +1129,8 @@ function getExperienceBullets(
         "Performed forecasting and predictive analytics projects involving customer behavior, operational performance, and financial indicators.",
         "Collaborated on business-focused AI and analytics initiatives while managing multiple deliverables and deadlines.",
       ],
-      searchable,
+      application,
+      keywordGate,
     );
   }
 
@@ -830,7 +1144,8 @@ function getExperienceBullets(
         "Coordinated issue resolution activities while ensuring timely completion of assigned operational projects.",
         "Produced technical reports supporting decision making, maintenance planning, and continuous improvement initiatives.",
       ],
-      searchable,
+      application,
+      keywordGate,
     );
   }
 
@@ -843,7 +1158,8 @@ function getExperienceBullets(
         "Prepared presentations and analytical summaries for faculty and research stakeholders.",
         "Collaborated with interdisciplinary teams to support data-driven project initiatives and organizational goals.",
       ],
-      searchable,
+      application,
+      keywordGate,
     );
   }
 
@@ -855,24 +1171,105 @@ function getExperienceBullets(
         "Delivered instruction in Python programming, web development, and practical problem-solving methodologies.",
         "Assisted with project coordination, stakeholder communication, and educational technology implementation.",
       ],
-      searchable,
+      application,
+      keywordGate,
     );
   }
 
   return item.focus.map((focus) => `Supported ${focus.toLowerCase()} initiatives in a data-focused environment.`);
 }
 
-function prioritizeBullets(bullets: string[], searchable: string) {
+function prioritizeBullets(
+  bullets: string[],
+  application: ApplicationDraft,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
+  const searchable = `${application.role} ${application.notes}`;
+  const weightedTerms = keywordGate.evidenceMatches.flatMap((match) => [
+    match.label,
+    match.resumeTerm ?? "",
+    ...match.jobTerms,
+  ]);
+
   return [...bullets]
-    .sort((left, right) => scoreTextForSearch(right, searchable) - scoreTextForSearch(left, searchable))
+    .sort(
+      (left, right) =>
+        scoreTextForSearch(right, searchable, weightedTerms) - scoreTextForSearch(left, searchable, weightedTerms),
+    )
     .slice(0, 5);
 }
 
-function scoreTextForSearch(value: string, searchable: string) {
-  const normalized = value.toLowerCase();
-  const keywords = searchable.split(/[^a-z0-9+#.]+/).filter((keyword) => keyword.length > 2);
+function scoreTextForSearch(value: string, searchable: string, weightedTerms: string[] = []) {
+  const normalized = normalizeKeywordText(value);
+  const keywords = normalizeKeywordText(searchable)
+    .split(" ")
+    .filter((keyword) => keyword.length > 2 && !resumeStopWords.has(keyword));
+  const weightedScore = weightedTerms.reduce((score, term) => {
+    const normalizedTerm = normalizeKeywordText(term);
 
-  return keywords.reduce((score, keyword) => score + (normalized.includes(keyword) ? 1 : 0), 0);
+    if (containsNormalizedPhrase(normalized, normalizedTerm)) return score + 8;
+
+    const termTokens = normalizedTerm.split(" ").filter((token) => token.length > 2 && !resumeStopWords.has(token));
+    return score + termTokens.filter((token) => containsNormalizedPhrase(normalized, token)).length * 3;
+  }, 0);
+
+  return weightedScore + keywords.reduce((score, keyword) => score + (containsNormalizedPhrase(normalized, keyword) ? 1 : 0), 0);
+}
+
+const resumeStopWords = new Set([
+  "and",
+  "are",
+  "for",
+  "from",
+  "have",
+  "job",
+  "our",
+  "role",
+  "that",
+  "the",
+  "this",
+  "with",
+  "will",
+  "you",
+  "your",
+]);
+
+function getSelectedResumeProjects(
+  application: ApplicationDraft,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
+  const weightedTerms = keywordGate.evidenceMatches.flatMap((match) => [
+    match.label,
+    match.resumeTerm ?? "",
+    match.evidence,
+    ...match.jobTerms,
+  ]);
+
+  return [...profile.projects]
+    .map((project) => {
+      const sourceScore = keywordGate.evidenceMatches.reduce((score, match) => {
+        const projectIsSource = match.sources.some(
+          (source) =>
+            normalizeKeywordText(source).includes(normalizeKeywordText(project.name)) ||
+            normalizeKeywordText(project.name).includes(normalizeKeywordText(source)),
+        );
+
+        return score + (projectIsSource ? 20 : 0);
+      }, 0);
+      const contentScore = scoreTextForSearch(
+        `${project.name} ${project.summary}`,
+        `${application.role} ${application.notes}`,
+        weightedTerms,
+      );
+
+      return {
+        ...project,
+        relevanceScore: sourceScore + contentScore,
+      };
+    })
+    .sort((left, right) => right.relevanceScore - left.relevanceScore)
+    .slice(0, 2)
+    .map(({ name, summary }) => ({ name, summary }));
 }
 
 function getResumeSkillGroups(matchedSkills: string[]) {
@@ -910,20 +1307,10 @@ function getMatchedSkills(application: ApplicationDraft, keywordGate: ReturnType
   const allSkills = Object.values(profile.skills).flat();
   const matched = allSkills.filter((skill) => searchable.includes(skill.toLowerCase()));
   const verified = keywordGate.verifiedKeywords.filter((keyword) => allSkills.includes(keyword));
-  const fallback = [
-    "Python",
-    "SQL",
-    "Data Cleaning",
-    "EDA",
-    "Feature Engineering",
-    "Dashboard Development",
-    "Predictive Analytics",
-    "Forecasting",
-    "KPI Reporting",
-    "Data Validation",
-  ];
+  const transferable = keywordGate.relatedKeywords.filter((keyword) => allSkills.includes(keyword));
+  const baseline = ["Python", "SQL", "Excel"].filter((skill) => allSkills.includes(skill) || skill === "Excel");
 
-  return Array.from(new Set([...verified, ...matched, ...fallback])).slice(0, 14);
+  return Array.from(new Set([...verified, ...transferable, ...matched, ...baseline])).slice(0, 14);
 }
 
 function getPrioritizedExperience() {
