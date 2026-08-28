@@ -33,3 +33,17 @@ model DiscoveryRun {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model PassedDiscoveredJob {
+  jobId      String   @id
+  reason     String
+  company    String
+  role       String
+  location   String
+  source     String
+  jobUrl     String
+  summary    String
+  matchScore Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

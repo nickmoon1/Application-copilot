@@ -9,5 +9,5 @@ export async function POST(request: Request) {
     await restoreDiscoveredJob(jobId);
   }
 
-  redirect("/?discover=1#discovered-jobs");
+  redirect("/#discovered-jobs");
 }

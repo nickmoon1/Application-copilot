@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getInvalidDiscoveredJobIds } from "@/lib/invalid-discovered-jobs";
 import { getDailyDiscovery } from "@/lib/daily-discovery";
 import { analyzeJobUrl, type JobUrlAnalysis } from "@/lib/job-url-analysis";
+import { getPassedDiscoveredJobs } from "@/lib/passed-discovered-jobs";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,11 @@ export default async function Home({ searchParams }: PageProps) {
     },
   });
   const discovery = await getDailyDiscovery(params?.discover === "1");
-  const invalidDiscoveredJobIds = await getInvalidDiscoveredJobIds();
+  const [invalidDiscoveredJobIds, passedDiscoveredJobs] = await Promise.all([
+    getInvalidDiscoveredJobIds(),
+    getPassedDiscoveredJobs(),
+  ]);
+  const passedDiscoveredJobIds = new Set(passedDiscoveredJobs.map((job) => job.jobId));
   const trackedJobUrls = new Set(
     applications
       .map((application) => normalizeUrl(application.jobUrl))
@@ -91,7 +96,10 @@ export default async function Home({ searchParams }: PageProps) {
       return true;
     });
   const activeDiscoveredCandidates = untrackedCandidates.filter(
-    (candidate) => !isInvalidDiscoveredJob(candidate) && !invalidDiscoveredJobIds.has(candidate.id),
+    (candidate) =>
+      !isInvalidDiscoveredJob(candidate) &&
+      !invalidDiscoveredJobIds.has(candidate.id) &&
+      !passedDiscoveredJobIds.has(candidate.id),
   );
   const archivedDiscoveredCandidates = untrackedCandidates.filter(
     (candidate) => isInvalidDiscoveredJob(candidate) || invalidDiscoveredJobIds.has(candidate.id),
@@ -110,6 +118,7 @@ export default async function Home({ searchParams }: PageProps) {
       initialDiscoveryConnectors={discovery.connectors}
       initialDiscoveredJobs={activeDiscoveredCandidates}
       initialDiscoveryAt={discovery.searchedAt}
+      initialPassedDiscoveredJobs={passedDiscoveredJobs}
       initialJobAnalysis={initialJobAnalysis}
       initialJobAnalysisError={initialJobAnalysisError}
       initialJobDraft={manualJobDraft}

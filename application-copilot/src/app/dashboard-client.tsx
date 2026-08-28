@@ -3,6 +3,11 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { type DiscoveredJob, type DiscoveryConnector } from "@/lib/job-discovery";
+import {
+  discoveredJobPassReasons,
+  getDiscoveredJobPassReasonLabel,
+} from "@/lib/discovered-job-pass-reasons";
+import { type PassedDiscoveredJob } from "@/lib/passed-discovered-jobs";
 
 const jobs = [
   {
@@ -276,6 +281,40 @@ function buildDiverseDailyQueue(jobs: DiscoveredJob[], limit: number, companyLim
   return queue;
 }
 
+function PassDiscoveredJobForm({ job }: { job: DiscoveredJob }) {
+  return (
+    <form action="/jobs/discovered/pass" className="pass-job-form" method="post">
+      <input name="jobId" type="hidden" value={job.id} />
+      <input name="company" type="hidden" value={job.company} />
+      <input name="role" type="hidden" value={job.role} />
+      <input name="location" type="hidden" value={job.location} />
+      <input name="source" type="hidden" value={job.source} />
+      <input name="jobUrl" type="hidden" value={job.jobUrl} />
+      <input name="summary" type="hidden" value={job.summary} />
+      <input name="matchScore" type="hidden" value={job.matchScore} />
+      <select aria-label={`Reason for passing on ${job.role}`} defaultValue="ROLE_MISMATCH" name="reason">
+        {discoveredJobPassReasons.map((reason) => (
+          <option key={reason.value} value={reason.value}>{reason.label}</option>
+        ))}
+      </select>
+      <button className="secondary" title="Archive this valid role as a pass" type="submit">
+        Pass
+      </button>
+    </form>
+  );
+}
+
+function getPassedJobPreview(summary: string) {
+  const normalized = summary.replace(/\s+/g, " ").trim();
+
+  if (normalized.length <= 360) return normalized;
+
+  const shortened = normalized.slice(0, 360);
+  const lastSpace = shortened.lastIndexOf(" ");
+
+  return `${shortened.slice(0, lastSpace > 280 ? lastSpace : 360)}...`;
+}
+
 function getLocationFitRank(locationFit: string) {
   if (locationFit === "LOCAL_MATCH") return 3;
   if (locationFit === "REMOTE_OR_MULTI_LOCATION") return 2;
@@ -315,6 +354,7 @@ type DashboardClientProps = {
   initialJobAnalysis: JobUrlAnalysis | null;
   initialJobAnalysisError: string | null;
   initialJobDraft: typeof initialJobDraft;
+  initialPassedDiscoveredJobs: PassedDiscoveredJob[];
   initialSelectedApplicationId: string | null;
 };
 
@@ -329,6 +369,7 @@ export default function DashboardClient({
   initialJobAnalysis,
   initialJobAnalysisError,
   initialJobDraft,
+  initialPassedDiscoveredJobs,
   initialSelectedApplicationId,
 }: DashboardClientProps) {
   const [activeNav, setActiveNav] = useState("Queue");
@@ -752,7 +793,7 @@ export default function DashboardClient({
             </div>
             <span className="count-label">
               {lastDiscoveryAt
-                  ? `${dailyDiscoveredJobs.length} queued / ${backlogDiscoveredJobs.length} backlog / ${archivedDiscoveredJobs.length} invalid`
+                  ? `${dailyDiscoveredJobs.length} queued / ${backlogDiscoveredJobs.length} backlog / ${initialPassedDiscoveredJobs.length} passed / ${archivedDiscoveredJobs.length} invalid`
                   : "Not run"}
             </span>
           </div>
@@ -854,6 +895,7 @@ export default function DashboardClient({
                               Create PR
                             </button>
                           </form>
+                          <PassDiscoveredJobForm job={candidate} />
                           <form action="/jobs/discovered/invalid" className="inline-form" method="post">
                             <input name="jobId" type="hidden" value={candidate.id} />
                             <button
@@ -907,6 +949,7 @@ export default function DashboardClient({
                               Create PR
                             </button>
                           </form>
+                          <PassDiscoveredJobForm job={candidate} />
                           <form action="/jobs/discovered/invalid" className="inline-form" method="post">
                             <input name="jobId" type="hidden" value={candidate.id} />
                             <button className="secondary" type="submit">
@@ -963,6 +1006,43 @@ export default function DashboardClient({
                       </a>
                       <form action="/jobs/discovered/restore" className="inline-form" method="post">
                         <input name="jobId" type="hidden" value={candidate.id} />
+                        <button className="secondary" type="submit">
+                          Restore
+                        </button>
+                      </form>
+                    </div>
+                  </article>
+                ))}
+              </div>
+            </details>
+          )}
+
+          {initialPassedDiscoveredJobs.length > 0 && (
+            <details className="discovery-archive">
+              <summary>
+                <span>Passed Roles</span>
+                <strong>{initialPassedDiscoveredJobs.length}</strong>
+              </summary>
+              <div className="discovery-list archived-discovery-list">
+                {initialPassedDiscoveredJobs.map((job) => (
+                  <article className="discovery-card archived-row" key={job.jobId}>
+                    <div>
+                      <p className="eyebrow">{job.company}</p>
+                      <h3>{job.role}</h3>
+                      <div className="job-meta">
+                        <span>{job.location}</span>
+                        <span>{job.source}</span>
+                        <span>{job.matchScore}% previous match</span>
+                        <span>Passed: {getDiscoveredJobPassReasonLabel(job.reason)}</span>
+                      </div>
+                    </div>
+                    <p>{getPassedJobPreview(job.summary)}</p>
+                    <div className="row-actions">
+                      <a className="ghost link-button" href={job.jobUrl} rel="noreferrer" target="_blank">
+                        Open Job
+                      </a>
+                      <form action="/jobs/discovered/pass/restore" className="inline-form" method="post">
+                        <input name="jobId" type="hidden" value={job.jobId} />
                         <button className="secondary" type="submit">
                           Restore
                         </button>

@@ -718,6 +718,26 @@ h3 {
   display: inline-flex;
 }
 
+.pass-job-form {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.pass-job-form select {
+  min-height: 42px;
+  max-width: 150px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #ffffff;
+  color: var(--ink);
+  font: inherit;
+}
+
+.discovery-card .row-actions {
+  flex-wrap: wrap;
+}
+
 .danger-button {
   border-color: #efc4c4;
   color: #8a1f1f;
@@ -1126,6 +1146,12 @@ dd {
   }
 
   .row-actions > * {
+    flex: 1;
+  }
+
+  .pass-job-form select,
+  .pass-job-form button {
+    min-width: 0;
     flex: 1;
   }
 }
