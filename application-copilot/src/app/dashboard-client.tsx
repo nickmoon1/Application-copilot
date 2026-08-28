@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { type DiscoveredJob } from "@/lib/job-discovery";
+import { type DiscoveredJob, type DiscoveryConnector } from "@/lib/job-discovery";
 
 const jobs = [
   {
@@ -251,6 +251,31 @@ function compareDiscoveredJobs(left: DiscoveredJob, right: DiscoveredJob) {
   return new Date(right.posted).getTime() - new Date(left.posted).getTime();
 }
 
+function buildDiverseDailyQueue(jobs: DiscoveredJob[], limit: number, companyLimit: number) {
+  const queue: DiscoveredJob[] = [];
+  const deferred: DiscoveredJob[] = [];
+  const companyCounts = new Map<string, number>();
+
+  for (const job of jobs) {
+    const companyKey = job.company.trim().toLowerCase();
+    const companyCount = companyCounts.get(companyKey) ?? 0;
+
+    if (queue.length < limit && companyCount < companyLimit) {
+      queue.push(job);
+      companyCounts.set(companyKey, companyCount + 1);
+    } else {
+      deferred.push(job);
+    }
+  }
+
+  for (const job of deferred) {
+    if (queue.length >= limit) break;
+    queue.push(job);
+  }
+
+  return queue;
+}
+
 function getLocationFitRank(locationFit: string) {
   if (locationFit === "LOCAL_MATCH") return 3;
   if (locationFit === "REMOTE_OR_MULTI_LOCATION") return 2;
@@ -284,6 +309,7 @@ type DashboardClientProps = {
   initialCreatedPrNumber: string | null;
   initialApplications: SavedApplication[];
   initialArchivedDiscoveredJobs: DiscoveredJob[];
+  initialDiscoveryConnectors: DiscoveryConnector[];
   initialDiscoveredJobs: DiscoveredJob[];
   initialDiscoveryAt: string | null;
   initialJobAnalysis: JobUrlAnalysis | null;
@@ -297,6 +323,7 @@ export default function DashboardClient({
   initialCreatedPrNumber,
   initialApplications,
   initialArchivedDiscoveredJobs,
+  initialDiscoveryConnectors,
   initialDiscoveredJobs,
   initialDiscoveryAt,
   initialJobAnalysis,
@@ -334,10 +361,11 @@ export default function DashboardClient({
   const discoveredJobs = initialDiscoveredJobs;
   const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
   const rankedDiscoveredJobs = useMemo(() => [...discoveredJobs].sort(compareDiscoveredJobs), [discoveredJobs]);
-  const priorityDiscoveredJobs = rankedDiscoveredJobs.slice(0, 3);
-  const stretchDiscoveredJobs = rankedDiscoveredJobs.slice(3, 5);
-  const backlogDiscoveredJobs = rankedDiscoveredJobs.slice(5);
-  const dailyDiscoveredJobs = rankedDiscoveredJobs.slice(0, 5);
+  const dailyDiscoveredJobs = buildDiverseDailyQueue(rankedDiscoveredJobs, 5, 2);
+  const dailyDiscoveredJobIds = new Set(dailyDiscoveredJobs.map((job) => job.id));
+  const priorityDiscoveredJobs = dailyDiscoveredJobs.slice(0, 3);
+  const stretchDiscoveredJobs = dailyDiscoveredJobs.slice(3, 5);
+  const backlogDiscoveredJobs = rankedDiscoveredJobs.filter((job) => !dailyDiscoveredJobIds.has(job.id));
   const activeApplications = useMemo(
     () => savedApplications.filter((application) => !isTerminalInactiveStatus(application.status)),
     [savedApplications],
@@ -668,7 +696,7 @@ export default function DashboardClient({
               {isCheckingApproval ? "Checking" : `Check PR #${trackedPullNumber}`}
             </button>
             <Link className="primary link-button" href="/?discover=1#discovered-jobs">
-              Find Jobs
+              Refresh Jobs
             </Link>
           </div>
         </header>
@@ -723,11 +751,27 @@ export default function DashboardClient({
               <h2>Daily 5 Queue</h2>
             </div>
             <span className="count-label">
-              {initialDiscoveredJobs.length + initialArchivedDiscoveredJobs.length > 0
+              {lastDiscoveryAt
                   ? `${dailyDiscoveredJobs.length} queued / ${backlogDiscoveredJobs.length} backlog / ${archivedDiscoveredJobs.length} invalid`
                   : "Not run"}
             </span>
           </div>
+
+          <details className="connector-health">
+            <summary>
+              <span>Discovery sources</span>
+              <strong>{initialDiscoveryConnectors.filter((connector) => connector.found > 0).length} returning results</strong>
+            </summary>
+            <div className="connector-health-grid">
+              {initialDiscoveryConnectors.map((connector) => (
+                <a href={connector.url} key={connector.name} rel="noreferrer" target="_blank">
+                  <span>{connector.name}</span>
+                  <strong>{connector.found} found</strong>
+                  <small>{connector.mode.replaceAll("_", " ")}</small>
+                </a>
+              ))}
+            </div>
+          </details>
 
           {dailyDiscoveredJobs.length > 0 ? (
             <>
@@ -738,7 +782,7 @@ export default function DashboardClient({
                 </div>
                 <div>
                   <span>Ranking logic</span>
-                  <strong>Match, portfolio fit, location, live validation</strong>
+                  <strong>Match, portfolio fit, location, validation, source diversity</strong>
                 </div>
               </div>
 
@@ -886,7 +930,7 @@ export default function DashboardClient({
                   </span>
                 </>
               ) : (
-                <span>Click Find Jobs to build today&apos;s top five application queue from configured sources.</span>
+                <span>Today&apos;s discovery runs automatically. Use Refresh Jobs to check every source again.</span>
               )}
             </div>
           )}

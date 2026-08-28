@@ -2,7 +2,7 @@ import DashboardClient, { type SavedApplication } from "./dashboard-client";
 import { syncApplicationStatuses } from "@/lib/application-status-sync";
 import { prisma } from "@/lib/db";
 import { getInvalidDiscoveredJobIds } from "@/lib/invalid-discovered-jobs";
-import { discoverJobs } from "@/lib/job-discovery";
+import { getDailyDiscovery } from "@/lib/daily-discovery";
 import { analyzeJobUrl, type JobUrlAnalysis } from "@/lib/job-url-analysis";
 
 export const dynamic = "force-dynamic";
@@ -67,8 +67,8 @@ export default async function Home({ searchParams }: PageProps) {
       createdAt: "desc",
     },
   });
-  const discovery = params?.discover === "1" ? await discoverJobs() : null;
-  const invalidDiscoveredJobIds = discovery ? await getInvalidDiscoveredJobIds() : new Set<string>();
+  const discovery = await getDailyDiscovery(params?.discover === "1");
+  const invalidDiscoveredJobIds = await getInvalidDiscoveredJobIds();
   const trackedJobUrls = new Set(
     applications
       .map((application) => normalizeUrl(application.jobUrl))
@@ -77,8 +77,7 @@ export default async function Home({ searchParams }: PageProps) {
   const trackedRoleKeys = new Set(
     applications.map((application) => getRoleKey(application.company, application.role)),
   );
-  const untrackedCandidates =
-    discovery?.candidates.filter((candidate) => {
+  const untrackedCandidates = discovery.candidates.filter((candidate) => {
       const jobUrl = normalizeUrl(candidate.jobUrl);
 
       if (jobUrl && trackedJobUrls.has(jobUrl)) {
@@ -90,7 +89,7 @@ export default async function Home({ searchParams }: PageProps) {
       }
 
       return true;
-    }) ?? [];
+    });
   const activeDiscoveredCandidates = untrackedCandidates.filter(
     (candidate) => !isInvalidDiscoveredJob(candidate) && !invalidDiscoveredJobIds.has(candidate.id),
   );
@@ -108,8 +107,9 @@ export default async function Home({ searchParams }: PageProps) {
     <DashboardClient
       initialApplications={initialApplications}
       initialArchivedDiscoveredJobs={archivedDiscoveredCandidates}
+      initialDiscoveryConnectors={discovery.connectors}
       initialDiscoveredJobs={activeDiscoveredCandidates}
-      initialDiscoveryAt={discovery?.searchedAt ?? null}
+      initialDiscoveryAt={discovery.searchedAt}
       initialJobAnalysis={initialJobAnalysis}
       initialJobAnalysisError={initialJobAnalysisError}
       initialJobDraft={manualJobDraft}

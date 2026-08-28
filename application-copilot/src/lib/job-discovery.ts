@@ -25,6 +25,21 @@ export type DiscoveredJob = JobSeed & {
   notes: string;
 };
 
+export type DiscoveryConnector = {
+  name: string;
+  url: string;
+  mode: string;
+  found: number;
+};
+
+export type DiscoveryResult = {
+  searchedAt: string;
+  targetRoles: string[];
+  targetLocations: string[];
+  candidates: DiscoveredJob[];
+  connectors: DiscoveryConnector[];
+};
+
 export const targetRoles = [
   "data scientist",
   "data analyst",
@@ -37,7 +52,26 @@ export const targetRoles = [
   "big data",
 ];
 
-export const targetLocations = ["dallas", "irving", "plano", "richardson", "arlington", "frisco", "fort worth"];
+export const targetLocations = [
+  "dallas",
+  "irving",
+  "plano",
+  "richardson",
+  "arlington",
+  "frisco",
+  "fort worth",
+  "addison",
+  "carrollton",
+  "coppell",
+  "farmers branch",
+  "garland",
+  "grapevine",
+  "lancaster",
+  "lewisville",
+  "mckinney",
+  "mesquite",
+  "midlothian",
+];
 
 const attDataAnalyticsUrl = "https://www.att.jobs/category/data-and-analytics-jobs/117/61758/1";
 const citiCareersUrl = "https://jobs.citi.com/search-jobs/data/287/1";
@@ -61,6 +95,10 @@ const americanAirlinesRssUrls = [
   "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(business%20analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
   "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(data%20scientist)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
 ];
+const adzunaCareersUrl = "https://www.adzuna.com/";
+const adzunaSearchTerms = ["data analyst", "data scientist", "business analyst", "data engineer"];
+const remotiveCareersUrl = "https://remotive.com/remote-jobs";
+const remotiveApiUrl = "https://remotive.com/api/remote-jobs?search=data";
 
 const nttPriorityJobs: JobSeed[] = [
   {
@@ -216,12 +254,23 @@ const attFallbackJobs: JobSeed[] = [
   },
 ];
 
-export async function discoverJobs() {
-  const liveAttJobs = await discoverAttJobs();
-  const citiDiscovery = await discoverCitiJobs();
+export async function discoverJobs(): Promise<DiscoveryResult> {
+  const [
+    liveAttJobs,
+    citiDiscovery,
+    nttDiscovery,
+    americanAirlinesDiscovery,
+    adzunaDiscovery,
+    remotiveDiscovery,
+  ] = await Promise.all([
+    discoverAttJobs(),
+    discoverCitiJobs(),
+    discoverNttJobs(),
+    discoverAmericanAirlinesJobs(),
+    discoverAdzunaJobs(),
+    discoverRemotiveJobs(),
+  ]);
   const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
-  const nttDiscovery = await discoverNttJobs();
-  const americanAirlinesDiscovery = await discoverAmericanAirlinesJobs();
   const deloitteDiscovery = discoverDeloitteJobs();
   const jpmorganChaseDiscovery = discoverJpmorganChaseJobs();
   const seeds = mergeJobs([
@@ -231,6 +280,8 @@ export async function discoverJobs() {
     ...americanAirlinesDiscovery.jobs,
     ...deloitteDiscovery.jobs,
     ...jpmorganChaseDiscovery.jobs,
+    ...adzunaDiscovery.jobs,
+    ...remotiveDiscovery.jobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
@@ -284,8 +335,169 @@ export async function discoverJobs() {
         mode: jpmorganChaseDiscovery.mode,
         found: jpmorganChaseDiscovery.jobs.length,
       },
+      {
+        name: "Adzuna Dallas Aggregator",
+        url: adzunaCareersUrl,
+        mode: adzunaDiscovery.mode,
+        found: adzunaDiscovery.jobs.length,
+      },
+      {
+        name: "Remotive U.S. Remote",
+        url: remotiveCareersUrl,
+        mode: remotiveDiscovery.mode,
+        found: remotiveDiscovery.jobs.length,
+      },
     ],
   };
+}
+
+async function discoverAdzunaJobs() {
+  const appId = process.env.ADZUNA_APP_ID?.trim();
+  const appKey = process.env.ADZUNA_APP_KEY?.trim();
+
+  if (!appId || !appKey) {
+    return { jobs: [] as JobSeed[], mode: "not_configured" };
+  }
+
+  const pages = await Promise.all(
+    adzunaSearchTerms.map(async (term) => {
+      const url = new URL("https://api.adzuna.com/v1/api/jobs/us/search/1");
+      url.searchParams.set("app_id", appId);
+      url.searchParams.set("app_key", appKey);
+      url.searchParams.set("results_per_page", "20");
+      url.searchParams.set("what", term);
+      url.searchParams.set("where", "Dallas, TX");
+      url.searchParams.set("distance", "50");
+      url.searchParams.set("sort_by", "date");
+      url.searchParams.set("content-type", "application/json");
+
+      try {
+        return await fetchText(url.toString());
+      } catch {
+        return "";
+      }
+    }),
+  );
+  const parsedJobs = mergeJobs(pages.flatMap(parseAdzunaJobs));
+  const jobs = parsedJobs
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .slice(0, 20);
+
+  return {
+    jobs,
+    mode: getLiveConnectorMode(parsedJobs.length, jobs.length),
+  };
+}
+
+type AdzunaJob = {
+  id?: string;
+  title?: string;
+  description?: string;
+  created?: string;
+  redirect_url?: string;
+  company?: { display_name?: string };
+  location?: { display_name?: string };
+};
+
+function parseAdzunaJobs(payload: string): JobSeed[] {
+  if (!payload) return [];
+
+  try {
+    const parsed = JSON.parse(payload) as { results?: AdzunaJob[] };
+
+    return (parsed.results ?? []).flatMap((job) => {
+      const id = job.id?.trim();
+      const role = cleanHtmlText(job.title ?? "");
+      const company = cleanHtmlText(job.company?.display_name ?? "");
+      const location = cleanHtmlText(job.location?.display_name ?? "");
+      const jobUrl = job.redirect_url?.trim();
+      const description = cleanHtmlText(job.description ?? "");
+
+      if (!id || !role || !company || !location || !jobUrl) return [];
+
+      return [{
+        id: `adzuna-${slugify(company)}-${slugify(id)}`,
+        company,
+        role,
+        location,
+        source: "Adzuna - Live",
+        jobUrl,
+        posted: normalizeDate(job.created ?? ""),
+        summary: `Live Adzuna result for ${role} at ${company} in ${location}. ${description}`.trim(),
+        keywords: inferKeywords(`${role} ${description}`),
+      }];
+    });
+  } catch {
+    return [];
+  }
+}
+
+async function discoverRemotiveJobs() {
+  let payload = "";
+
+  try {
+    payload = await fetchText(remotiveApiUrl);
+  } catch {
+    return { jobs: [] as JobSeed[], mode: "unavailable" };
+  }
+
+  const parsedJobs = mergeJobs(parseRemotiveJobs(payload));
+  const jobs = parsedJobs
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .slice(0, 12);
+
+  return {
+    jobs,
+    mode: getLiveConnectorMode(parsedJobs.length, jobs.length),
+  };
+}
+
+type RemotiveJob = {
+  id?: number;
+  title?: string;
+  company_name?: string;
+  candidate_required_location?: string;
+  description?: string;
+  publication_date?: string;
+  url?: string;
+  tags?: string[];
+};
+
+function parseRemotiveJobs(payload: string): JobSeed[] {
+  if (!payload) return [];
+
+  try {
+    const parsed = JSON.parse(payload) as { jobs?: RemotiveJob[] };
+
+    return (parsed.jobs ?? []).flatMap((job) => {
+      const id = job.id ? String(job.id) : "";
+      const role = cleanHtmlText(job.title ?? "");
+      const company = cleanHtmlText(job.company_name ?? "");
+      const location = cleanHtmlText(job.candidate_required_location ?? "");
+      const jobUrl = job.url?.trim();
+      const description = cleanHtmlText(job.description ?? "");
+      const tags = (job.tags ?? []).map((tag) => cleanHtmlText(tag).toLowerCase()).filter(Boolean);
+
+      if (!id || !role || !company || !location || !jobUrl) return [];
+
+      return [{
+        id: `remotive-${slugify(company)}-${id}`,
+        company,
+        role,
+        location,
+        source: "Remotive - Live",
+        jobUrl,
+        posted: normalizeDate(job.publication_date ?? ""),
+        summary: `Remote role listed by Remotive for ${role} at ${company}. ${description}`.trim(),
+        keywords: Array.from(new Set([...inferKeywords(`${role} ${description}`), ...tags])).slice(0, 16),
+        workArrangement: `Remote - ${location}`,
+      }];
+    });
+  } catch {
+    return [];
+  }
 }
 
 async function discoverAmericanAirlinesJobs() {
