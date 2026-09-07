@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { discoverJobs, type DiscoveryResult } from "@/lib/job-discovery";
+import { discoverJobs, jobDecoderVersion, type DiscoveryResult } from "@/lib/job-discovery";
 
 export async function getDailyDiscovery(forceRefresh = false): Promise<DiscoveryResult> {
   const runDate = getDallasDateKey();
@@ -11,7 +11,11 @@ export async function getDailyDiscovery(forceRefresh = false): Promise<Discovery
 
     if (cachedRun) {
       try {
-        return JSON.parse(cachedRun.payload) as DiscoveryResult;
+        const parsed = JSON.parse(cachedRun.payload) as DiscoveryResult;
+
+        if (parsed.decoderVersion === jobDecoderVersion && parsed.candidates.every((candidate) => candidate.requirementAnalysis)) {
+          return parsed;
+        }
       } catch {
         // Rebuild malformed cache entries instead of breaking the dashboard.
       }

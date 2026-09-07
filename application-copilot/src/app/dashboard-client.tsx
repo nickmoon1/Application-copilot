@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { type DiscoveredJob, type DiscoveryConnector } from "@/lib/job-discovery";
+import { type JobRequirementAnalysis } from "@/lib/job-requirement-decoder";
 import {
   discoveredJobPassReasons,
   getDiscoveredJobPassReasonLabel,
@@ -130,6 +131,7 @@ type JobUrlAnalysis = {
     score: number;
     tier: "STRONG" | "REVIEW" | "LOW";
   };
+  requirementAnalysis: JobRequirementAnalysis;
   recommendedMatchScore: number;
   requirements: string[];
   responsibilities: string[];
@@ -241,6 +243,12 @@ function isWeakJobAnalysis(analysis: JobUrlAnalysis) {
 }
 
 function compareDiscoveredJobs(left: DiscoveredJob, right: DiscoveredJob) {
+  const recommendationDifference = getRecommendationRank(right.requirementAnalysis.recommendation) - getRecommendationRank(left.requirementAnalysis.recommendation);
+  if (recommendationDifference !== 0) return recommendationDifference;
+
+  const urgencyDifference = getUrgencyRank(right.requirementAnalysis.timing.urgency) - getUrgencyRank(left.requirementAnalysis.timing.urgency);
+  if (urgencyDifference !== 0) return urgencyDifference;
+
   const matchDifference = right.matchScore - left.matchScore;
   if (matchDifference !== 0) return matchDifference;
 
@@ -254,6 +262,21 @@ function compareDiscoveredJobs(left: DiscoveredJob, right: DiscoveredJob) {
   if (validationDifference !== 0) return validationDifference;
 
   return new Date(right.posted).getTime() - new Date(left.posted).getTime();
+}
+
+function getRecommendationRank(recommendation: JobRequirementAnalysis["recommendation"]) {
+  if (recommendation === "STRONG_FIT") return 3;
+  if (recommendation === "REVIEW") return 2;
+  return 1;
+}
+
+function getUrgencyRank(urgency: JobRequirementAnalysis["timing"]["urgency"]) {
+  if (urgency === "CLOSING_SOON") return 6;
+  if (urgency === "FRESH") return 5;
+  if (urgency === "STANDARD") return 4;
+  if (urgency === "UNKNOWN") return 3;
+  if (urgency === "STALE") return 2;
+  return 1;
 }
 
 function buildDiverseDailyQueue(jobs: DiscoveredJob[], limit: number, companyLimit: number) {
@@ -301,6 +324,42 @@ function PassDiscoveredJobForm({ job }: { job: DiscoveredJob }) {
         Pass
       </button>
     </form>
+  );
+}
+
+function RequirementDecoderSummary({ analysis }: { analysis: JobRequirementAnalysis }) {
+  const dimensions = analysis.dimensions;
+
+  return (
+    <div className={`decoder-summary ${analysis.recommendation.toLowerCase()}`}>
+      <div className="decoder-heading">
+        <div>
+          <span>Work-based classification</span>
+          <strong>{analysis.familyLabel}</strong>
+        </div>
+        <span className="pill">{analysis.recommendation.replaceAll("_", " ")}</span>
+      </div>
+      <p>{analysis.recommendationReason}</p>
+      <div className="decoder-dimensions">
+        <span>Technical <strong>{dimensions.technical.score}%</strong></span>
+        <span>Functional <strong>{dimensions.functional.score}%</strong></span>
+        <span>Domain <strong>{dimensions.domain.score}%</strong></span>
+        <span>Seniority <strong>{dimensions.seniority.score}%</strong></span>
+      </div>
+      <div className="decoder-timing">
+        <strong>{analysis.timing.label}</strong>
+        {analysis.timing.closingDate && <span>Closing {formatDate(analysis.timing.closingDate)}</span>}
+      </div>
+      {analysis.hardGates.length > 0 && (
+        <div className="decoder-gates">
+          {analysis.hardGates.map((gate) => (
+            <span className={gate.status.toLowerCase()} key={`${gate.label}-${gate.status}`} title={gate.detail}>
+              {gate.label}: {gate.status.replace("_", " ")}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -402,7 +461,8 @@ export default function DashboardClient({
   const discoveredJobs = initialDiscoveredJobs;
   const archivedDiscoveredJobs = initialArchivedDiscoveredJobs;
   const rankedDiscoveredJobs = useMemo(() => [...discoveredJobs].sort(compareDiscoveredJobs), [discoveredJobs]);
-  const dailyDiscoveredJobs = buildDiverseDailyQueue(rankedDiscoveredJobs, 5, 2);
+  const actionableDiscoveredJobs = rankedDiscoveredJobs.filter((job) => job.requirementAnalysis.recommendation !== "PASS");
+  const dailyDiscoveredJobs = buildDiverseDailyQueue(actionableDiscoveredJobs, 5, 2);
   const dailyDiscoveredJobIds = new Set(dailyDiscoveredJobs.map((job) => job.id));
   const priorityDiscoveredJobs = dailyDiscoveredJobs.slice(0, 3);
   const stretchDiscoveredJobs = dailyDiscoveredJobs.slice(3, 5);
@@ -823,7 +883,7 @@ export default function DashboardClient({
                 </div>
                 <div>
                   <span>Ranking logic</span>
-                  <strong>Match, portfolio fit, location, validation, source diversity</strong>
+                  <strong>Decoded fit, closing urgency, location, validation, source diversity</strong>
                 </div>
               </div>
 
@@ -865,6 +925,7 @@ export default function DashboardClient({
                           </div>
                         </div>
                         <p>{candidate.summary}</p>
+                        <RequirementDecoderSummary analysis={candidate.requirementAnalysis} />
                         <p className="validation-note">{candidate.validationDetails}</p>
                         <div className="tag-row">
                           <span className="pill ready">{candidate.matchScore}% match</span>
@@ -933,6 +994,7 @@ export default function DashboardClient({
                           </div>
                         </div>
                         <p>{candidate.summary}</p>
+                        <RequirementDecoderSummary analysis={candidate.requirementAnalysis} />
                         <div className="row-actions">
                           <a className="ghost link-button" href={candidate.jobUrl} rel="noreferrer" target="_blank">
                             Open Job
@@ -1106,6 +1168,14 @@ export default function DashboardClient({
                   <span>Suggested Score</span>
                   <strong>{jobAnalysis.recommendedMatchScore}%</strong>
                 </div>
+                <div>
+                  <span>Job Family</span>
+                  <strong>{jobAnalysis.requirementAnalysis.familyLabel}</strong>
+                </div>
+                <div>
+                  <span>Posting Priority</span>
+                  <strong>{jobAnalysis.requirementAnalysis.timing.label}</strong>
+                </div>
                 <div className="wide">
                   <span>Keywords</span>
                   <strong>{jobAnalysis.keywords.length > 0 ? jobAnalysis.keywords.slice(0, 12).join(", ") : "No strong keywords detected"}</strong>
@@ -1121,6 +1191,17 @@ export default function DashboardClient({
                   </div>
                 )}
               </div>
+              <RequirementDecoderSummary analysis={jobAnalysis.requirementAnalysis} />
+              {jobAnalysis.requirementAnalysis.employerProblems.length > 0 && (
+                <div className="analysis-list">
+                  <span>What the employer needs solved</span>
+                  <ul>
+                    {jobAnalysis.requirementAnalysis.employerProblems.slice(0, 5).map((problem) => (
+                      <li key={problem}>{problem}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {jobAnalysis.requirements.length > 0 && (
                 <div className="analysis-list">
                   <span>Resume tailoring signals</span>

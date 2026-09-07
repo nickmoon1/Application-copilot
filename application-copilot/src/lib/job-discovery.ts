@@ -1,6 +1,7 @@
 import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { scorePortfolioFit, type PortfolioFit } from "@/lib/portfolio-fit";
+import { decodeJobRequirements, type JobRequirementAnalysis } from "@/lib/job-requirement-decoder";
 
 type JobSeed = {
   id: string;
@@ -19,6 +20,7 @@ export type DiscoveredJob = JobSeed & {
   locationFit: string;
   matchScore: number;
   portfolioFit: PortfolioFit;
+  requirementAnalysis: JobRequirementAnalysis;
   validationStatus: string;
   validationDetails: string;
   validationCheckedAt: string;
@@ -33,12 +35,15 @@ export type DiscoveryConnector = {
 };
 
 export type DiscoveryResult = {
+  decoderVersion: number;
   searchedAt: string;
   targetRoles: string[];
   targetLocations: string[];
   candidates: DiscoveredJob[];
   connectors: DiscoveryConnector[];
 };
+
+export const jobDecoderVersion = 4;
 
 export const targetRoles = [
   "data scientist",
@@ -285,7 +290,7 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary))
     .sort((a, b) => scorePortfolioFit(b).score - scorePortfolioFit(a).score);
   const candidates = (await Promise.all(matchedSeeds.map(enrichJob)))
     .filter((candidate) => candidate.portfolioFit.tier !== "LOW");
@@ -294,6 +299,7 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
     .sort((a, b) => b.matchScore - a.matchScore);
 
   return {
+    decoderVersion: jobDecoderVersion,
     searchedAt: new Date().toISOString(),
     targetRoles,
     targetLocations,
@@ -380,8 +386,7 @@ async function discoverAdzunaJobs() {
   );
   const parsedJobs = mergeJobs(pages.flatMap(parseAdzunaJobs));
   const jobs = parsedJobs
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary))
     .slice(0, 20);
 
   return {
@@ -444,8 +449,7 @@ async function discoverRemotiveJobs() {
 
   const parsedJobs = mergeJobs(parseRemotiveJobs(payload));
   const jobs = parsedJobs
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary))
     .slice(0, 12);
 
   return {
@@ -513,7 +517,6 @@ async function discoverAmericanAirlinesJobs() {
   const parsedJobs = mergeJobs(feeds.flatMap(parseAmericanAirlinesRss));
   const jobs = parsedJobs
     .filter((job) => isTargetLocationCandidate(job) && isAmericanAirlinesTargetRole(job))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
     .slice(0, 12);
 
   return {
@@ -677,8 +680,7 @@ async function discoverCitiJobs() {
   );
   const parsedJobs = mergeJobs(pages.flatMap(parseCitiSearchResults));
   const jobs = parsedJobs
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary))
     .slice(0, 12);
 
   return {
@@ -754,8 +756,7 @@ async function discoverNttJobs() {
   );
   const parsedJobs = mergeJobs([...nttPriorityJobs, ...pages.flatMap(parseNttSearchResults)]);
   const jobs = parsedJobs
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role))
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary))
     .slice(0, 12);
 
   return {
@@ -835,8 +836,7 @@ function getLiveConnectorMode(parsedCount: number, acceptedCount: number) {
 
 function discoverDeloitteJobs() {
   const jobs = deloittePriorityJobs
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role));
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary));
 
   return {
     jobs,
@@ -846,8 +846,7 @@ function discoverDeloitteJobs() {
 
 function discoverJpmorganChaseJobs() {
   const jobs = jpmorganChasePriorityJobs
-    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords))
-    .filter((job) => !isOverSeniorForCurrentProfile(job.role));
+    .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary));
 
   return {
     jobs,
@@ -858,15 +857,23 @@ function discoverJpmorganChaseJobs() {
 async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
   const locationFit = getLocationFit(job);
   const portfolioFit = scorePortfolioFit(job);
-  const matchScore = scoreJob(job, portfolioFit);
   const validation = await validateJob(job);
   const jobEvidence = validation.evidence;
+  const requirementAnalysis = decodeJobRequirements({
+    description: `${job.summary} ${validation.jobText}`,
+    keywords: job.keywords,
+    location: job.location,
+    postedDate: job.posted,
+    role: job.role,
+  });
+  const matchScore = scoreJob(job, portfolioFit, requirementAnalysis);
 
   return {
     ...job,
     locationFit,
     matchScore,
     portfolioFit,
+    requirementAnalysis,
     validationStatus: validation.status,
     validationDetails: validation.details,
     validationCheckedAt: validation.checkedAt,
@@ -877,6 +884,10 @@ async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
       `Portfolio fit: ${portfolioFit.tier} (${portfolioFit.score}%) - ${portfolioFit.matchedAnchors.slice(0, 4).join("; ") || "No strong portfolio anchors matched"}.`,
       portfolioFit.missingAnchors.length > 0 ? `Portfolio gaps to review: ${portfolioFit.missingAnchors.join("; ")}.` : "",
       jobEvidence.length > 0 ? `Job evidence keywords: ${jobEvidence.join(", ")}.` : "",
+      `Work-based family: ${requirementAnalysis.familyLabel} (${requirementAnalysis.familyConfidence}% confidence).`,
+      `Fit dimensions: Technical ${requirementAnalysis.dimensions.technical.score}%, Functional ${requirementAnalysis.dimensions.functional.score}%, Domain ${requirementAnalysis.dimensions.domain.score}%, Seniority ${requirementAnalysis.dimensions.seniority.score}%.`,
+      `Decoder recommendation: ${requirementAnalysis.recommendation.replaceAll("_", " ")} - ${requirementAnalysis.recommendationReason}`,
+      `Posting timing: ${requirementAnalysis.timing.label}.`,
       `Validation: ${validation.details}.`,
       matchScore >= 90
         ? "Strong candidate for PR review."
@@ -891,6 +902,7 @@ async function validateJob(job: JobSeed) {
   try {
     const page = await fetchPage(job.jobUrl);
     const normalizedBody = normalizeForValidation(page.body);
+    const jobText = cleanHtmlText(page.body);
     const evidence = extractJobEvidence(normalizedBody);
     const roleTokens = getImportantTokens(job.role);
     const companyTokens = getImportantTokens(job.company);
@@ -902,6 +914,7 @@ async function validateJob(job: JobSeed) {
         checkedAt,
         details: `URL returned inactive signal (${page.statusCode}) or closed-job language`,
         evidence,
+        jobText,
         status: "INVALID_URL",
       };
     }
@@ -911,6 +924,7 @@ async function validateJob(job: JobSeed) {
         checkedAt,
         details: `URL returned HTTP ${page.statusCode}`,
         evidence,
+        jobText,
         status: "INVALID_URL",
       };
     }
@@ -920,6 +934,7 @@ async function validateJob(job: JobSeed) {
         checkedAt,
         details: `Verified page content with HTTP ${page.statusCode}`,
         evidence,
+        jobText,
         status: job.source.includes("Live") ? "LIVE_VERIFIED" : "URL_VERIFIED",
       };
     }
@@ -928,6 +943,7 @@ async function validateJob(job: JobSeed) {
       checkedAt,
       details: `URL loaded with HTTP ${page.statusCode}, but the title was not found on the page`,
       evidence,
+      jobText,
       status: "POSSIBLY_STALE",
     };
   } catch (error) {
@@ -935,6 +951,7 @@ async function validateJob(job: JobSeed) {
       checkedAt,
       details: error instanceof Error ? `Validation failed: ${error.message}` : "Validation failed",
       evidence: [],
+      jobText: "",
       status: "VALIDATION_FAILED",
     };
   }
@@ -1215,68 +1232,60 @@ function hasUsUrlSignal(jobUrl: string) {
   return usPathSignals.some((signal) => normalized.includes(signal));
 }
 
-function isTargetRole(role: string, keywords: string[]) {
-  const searchable = `${role} ${keywords.join(" ")}`.toLowerCase();
+function isTargetRole(role: string, keywords: string[], summary = "") {
+  const searchable = `${role} ${keywords.join(" ")} ${summary}`.toLowerCase();
+  const normalizedRole = role.toLowerCase();
+  const explicitTargetTitle = ["data", "analytics", "analyst", "business intelligence", "reporting", "operations research", "adjunct", "instructor"]
+    .some((signal) => normalizedRole.includes(signal));
+  const excludedTitle = ["office assistant", "content reviewer", "content moderator", "devops", "software engineer", "developer", "data annotation", "collection"]
+    .some((signal) => normalizedRole.includes(signal));
 
-  return targetRoles.some((targetRole) => searchable.includes(targetRole));
-}
+  if (excludedTitle && !explicitTargetTitle) return false;
 
-function isOverSeniorForCurrentProfile(role: string) {
-  const normalized = role.toLowerCase();
-
-  if ((normalized.startsWith("sr ") || normalized.startsWith("senior ")) && !normalized.includes("analyst/sr analyst")) {
-    return true;
-  }
-
-  const seniorSignals = [
-    "vice president",
-    "senior vice president",
-    "assistant vice president",
-    "principal",
-    "lead ",
-    "manager",
-    "director",
+  const workSignals = [
+    "analyze data",
+    "data analysis",
+    "dashboard",
+    "kpi reporting",
+    "business requirements",
+    "requirements gathering",
+    "predictive model",
+    "forecasting",
+    "data pipeline",
+    "data quality",
+    "business intelligence",
   ];
 
-  return seniorSignals.some((signal) => normalized.includes(signal));
+  return targetRoles.some((targetRole) => searchable.includes(targetRole)) || workSignals.some((signal) => searchable.includes(signal));
 }
 
 function inferKeywords(role: string) {
   const normalized = role.toLowerCase();
-  const keywords = new Set(["analytics"]);
+  const keywords = new Set<string>();
 
-  if (normalized.includes("data")) keywords.add("data engineer");
+  if (normalized.includes("analytics") || normalized.includes("data analysis") || normalized.includes("analyze data")) keywords.add("analytics");
+  if (normalized.includes("data engineer") || normalized.includes("data pipeline") || normalized.includes("etl")) keywords.add("data engineer");
   if (normalized.includes("ai")) keywords.add("ai");
   if (normalized.includes("big data")) keywords.add("big data");
   if (normalized.includes("software")) keywords.add("software engineering");
   if (normalized.includes("scientist")) keywords.add("data scientist");
   if (normalized.includes("analyst")) keywords.add("data analyst");
-
-  keywords.add("sql");
-  keywords.add("python");
+  if (normalized.includes("business intelligence")) keywords.add("business intelligence");
+  if (normalized.includes("dashboard")) keywords.add("dashboard");
+  if (normalized.includes("reporting")) keywords.add("reporting");
+  if (normalized.includes("sql")) keywords.add("sql");
+  if (normalized.includes("python")) keywords.add("python");
+  if (normalized.includes("forecast")) keywords.add("forecasting");
+  if (normalized.includes("machine learning")) keywords.add("machine learning");
 
   return Array.from(keywords);
 }
 
-function scoreJob(job: JobSeed, portfolioFit: PortfolioFit) {
-  let score = 72;
-  const searchable = `${job.role} ${job.summary} ${job.keywords.join(" ")}`.toLowerCase();
+function scoreJob(job: JobSeed, portfolioFit: PortfolioFit, requirementAnalysis: JobRequirementAnalysis) {
+  const locationAdjustment = getLocationFit(job) === "LOCAL_MATCH" ? 3 : getLocationFit(job) === "REMOTE_OR_MULTI_LOCATION" ? 2 : 0;
+  const portfolioAdjustment = portfolioFit.tier === "STRONG" ? 2 : portfolioFit.tier === "LOW" ? -4 : 0;
 
-  if (job.location.toLowerCase().includes("dallas")) score += 8;
-  if (job.location.toLowerCase().includes("plano") || job.location.toLowerCase().includes("irving")) score += 6;
-  if (getLocationFit(job) === "REMOTE_OR_MULTI_LOCATION") score += 5;
-  if (searchable.includes("sql")) score += 4;
-  if (searchable.includes("python")) score += 4;
-  if (searchable.includes("business intelligence") || searchable.includes("dashboard")) score += 4;
-  if (searchable.includes("data engineer") || searchable.includes("data engineering")) score += 4;
-  if (searchable.includes("data analyst") || searchable.includes("analytics")) score += 4;
-  if (searchable.includes("big data")) score += 3;
-  if (searchable.includes("stakeholder")) score += 2;
-  if (portfolioFit.tier === "STRONG") score += 6;
-  if (portfolioFit.tier === "REVIEW") score += 2;
-  if (portfolioFit.tier === "LOW") score -= 8;
-
-  return Math.min(score, 97);
+  return Math.max(0, Math.min(97, requirementAnalysis.overallScore + locationAdjustment + portfolioAdjustment));
 }
 
 function decodeHtml(value: string) {

@@ -458,6 +458,83 @@ h3 {
   font-size: 13px;
 }
 
+.decoder-summary {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d8e2dc;
+  border-left: 4px solid #5c967d;
+  border-radius: 6px;
+  background: #f7fbf8;
+}
+
+.decoder-summary.review {
+  border-left-color: #b7791f;
+  background: #fffbeb;
+}
+
+.decoder-summary.pass {
+  border-left-color: #b74444;
+  background: #fff7f7;
+}
+
+.decoder-heading,
+.decoder-timing {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.decoder-heading > div {
+  display: grid;
+  gap: 3px;
+}
+
+.decoder-heading span,
+.decoder-timing span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.decoder-dimensions {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.decoder-dimensions span,
+.decoder-gates span {
+  padding: 7px 8px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.decoder-dimensions strong {
+  display: block;
+  margin-top: 2px;
+  color: var(--ink);
+}
+
+.decoder-gates {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.decoder-gates .not_met {
+  border-color: #e7b0b0;
+  color: #8a1f1f;
+}
+
+.decoder-gates .review {
+  border-color: #e7c98a;
+  color: #7a5312;
+}
+
 .sync-note {
   margin-top: 12px;
   color: var(--muted);

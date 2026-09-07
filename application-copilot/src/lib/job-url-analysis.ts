@@ -1,4 +1,5 @@
 import { scorePortfolioFit, type PortfolioFit } from "@/lib/portfolio-fit";
+import { decodeJobRequirements, type JobRequirementAnalysis } from "@/lib/job-requirement-decoder";
 
 export type JobUrlAnalysis = {
   company: string;
@@ -6,6 +7,7 @@ export type JobUrlAnalysis = {
   location: string;
   locationReadiness: string;
   portfolioFit: PortfolioFit;
+  requirementAnalysis: JobRequirementAnalysis;
   recommendedMatchScore: number;
   requirements: string[];
   responsibilities: string[];
@@ -87,6 +89,8 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     inferLocationFromUrl(url),
     inferLocation(text),
   ]);
+  const postedDate = getJsonLdValue(jsonLd, ["datePosted"]);
+  const closingDate = getJsonLdValue(jsonLd, ["validThrough"]);
   const keywords = extractKeywords(text);
   const responsibilities = extractSignalLines(text, [
     "responsibilities",
@@ -121,18 +125,21 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     role: analyzedRole,
     summary,
   });
-  const recommendedMatchScore = scoreAnalyzedJob({
+  const requirementAnalysis = decodeJobRequirements({
+    closingDate,
+    description: `${text} ${responsibilities.join(" ")} ${requirements.join(" ")}`,
     keywords,
     location,
-    portfolioFit,
+    postedDate,
     role: analyzedRole,
-    summary,
   });
+  const recommendedMatchScore = requirementAnalysis.overallScore;
   const tailoringNotes = buildTailoringNotes({
     keywords,
     locationReadiness,
     portfolioFit,
     recommendedMatchScore,
+    requirementAnalysis,
     requirements,
     responsibilities,
     summary,
@@ -145,6 +152,7 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     location,
     locationReadiness,
     portfolioFit,
+    requirementAnalysis,
     recommendedMatchScore,
     requirements,
     responsibilities,
@@ -563,40 +571,6 @@ function titleCaseKeyword(keyword: string) {
     .join(" ");
 }
 
-function scoreAnalyzedJob({
-  keywords,
-  location,
-  portfolioFit,
-  role,
-  summary,
-}: {
-  keywords: string[];
-  location: string;
-  portfolioFit: PortfolioFit;
-  role: string;
-  summary: string;
-}) {
-  let score = 72;
-  const searchable = `${role} ${summary} ${keywords.join(" ")}`.toLowerCase();
-  const normalizedLocation = location.toLowerCase();
-
-  if (normalizedLocation.includes("dallas")) score += 8;
-  if (normalizedLocation.includes("plano") || normalizedLocation.includes("irving")) score += 6;
-  if (normalizedLocation.includes("remote")) score += 5;
-  if (normalizedLocation.includes("midlothian") || normalizedLocation.includes("fort worth") || normalizedLocation.includes("waco")) score += 3;
-  if (searchable.includes("sql")) score += 4;
-  if (searchable.includes("python")) score += 4;
-  if (searchable.includes("power bi") || searchable.includes("business intelligence") || searchable.includes("dashboard")) score += 4;
-  if (searchable.includes("data analyst") || searchable.includes("analytics")) score += 4;
-  if (searchable.includes("data engineer") || searchable.includes("data engineering")) score += 4;
-  if (searchable.includes("stakeholder")) score += 2;
-  if (portfolioFit.tier === "STRONG") score += 6;
-  if (portfolioFit.tier === "REVIEW") score += 2;
-  if (portfolioFit.tier === "LOW") score -= 8;
-
-  return Math.min(score, 97);
-}
-
 function extractSignalLines(text: string, anchors: string[]) {
   const sentences = text
     .split(/(?<=[.!?])\s+|\s+[•·]\s+|\n+/)
@@ -654,6 +628,7 @@ function buildTailoringNotes({
   locationReadiness,
   portfolioFit,
   recommendedMatchScore,
+  requirementAnalysis,
   requirements,
   responsibilities,
   summary,
@@ -663,6 +638,7 @@ function buildTailoringNotes({
   locationReadiness: string;
   portfolioFit: PortfolioFit;
   recommendedMatchScore: number;
+  requirementAnalysis: JobRequirementAnalysis;
   requirements: string[];
   responsibilities: string[];
   summary: string;
@@ -673,6 +649,12 @@ function buildTailoringNotes({
 - Keywords to consider: ${keywords.length > 0 ? keywords.join(", ") : "No strong keywords detected."}
 - Portfolio fit: ${portfolioFit.tier} (${portfolioFit.score}%). Matched evidence: ${portfolioFit.matchedAnchors.join("; ") || "No strong portfolio anchors matched"}. Gaps to review: ${portfolioFit.missingAnchors.join("; ") || "None"}.
 - Recommended match score: ${recommendedMatchScore}%
+- Work-based job family: ${requirementAnalysis.familyLabel} (${requirementAnalysis.familyConfidence}% confidence).
+- Fit dimensions: Technical ${requirementAnalysis.dimensions.technical.score}%, Functional ${requirementAnalysis.dimensions.functional.score}%, Domain ${requirementAnalysis.dimensions.domain.score}%, Seniority ${requirementAnalysis.dimensions.seniority.score}%.
+- Decoder recommendation: ${requirementAnalysis.recommendation.replaceAll("_", " ")} - ${requirementAnalysis.recommendationReason}
+- Posting timing: ${requirementAnalysis.timing.label}${requirementAnalysis.timing.closingDate ? ` (closing date ${requirementAnalysis.timing.closingDate})` : ""}.
+- Hard gates: ${requirementAnalysis.hardGates.length > 0 ? requirementAnalysis.hardGates.map((gate) => `${gate.label} [${gate.status}]: ${gate.detail}`).join(" | ") : "None detected."}
+- Employer problems: ${requirementAnalysis.employerProblems.length > 0 ? requirementAnalysis.employerProblems.join(" | ") : "Review job page manually."}
 - ${locationReadiness}
 - Responsibilities: ${responsibilities.length > 0 ? responsibilities.join(" | ") : "Review job page manually."}
 - Requirements: ${requirements.length > 0 ? requirements.join(" | ") : "Review job page manually."}
