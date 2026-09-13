@@ -36,6 +36,17 @@ The source-health section on the dashboard reports whether each connector is liv
 
 For hosted scheduling, set `DISCOVERY_CRON_SECRET` and configure the scheduler to send a daily `POST` request to `/api/jobs/discover` with `Authorization: Bearer <secret>`. Local dashboard use does not require this value.
 
+## Private Dashboard Authentication
+
+Dashboard access uses a separate GitHub OAuth App and an immutable GitHub user ID allowlist. The GitHub App that creates application PRs remains independent.
+
+1. Create a GitHub OAuth App with `http://localhost:3000` as its homepage URL and `http://localhost:3000/api/auth/callback/github` as its authorization callback URL.
+2. Set `AUTH_GITHUB_CLIENT_ID` and `AUTH_GITHUB_CLIENT_SECRET` from that OAuth App.
+3. Set `AUTH_ALLOWED_GITHUB_ID` to the numeric GitHub account ID permitted to use this dashboard.
+4. Generate `NEXTAUTH_SECRET` with `openssl rand -base64 32` and set `NEXTAUTH_URL=http://localhost:3000` for local development.
+
+Unauthenticated browser requests are redirected to `/sign-in`. Unauthenticated API requests receive `401 Unauthorized`. The scheduled discovery `POST` remains accessible only with its `DISCOVERY_CRON_SECRET` bearer token.
+
 ## Verification
 
 ```bash

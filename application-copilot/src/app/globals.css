@@ -40,6 +40,50 @@ button {
   font: inherit;
 }
 
+.auth-page {
+  min-height: 100vh;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: #10231b;
+}
+
+.auth-panel {
+  width: min(100%, 440px);
+  padding: 32px;
+  border-radius: 8px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 22px;
+}
+
+.auth-copy {
+  margin-top: 12px;
+  color: var(--muted);
+  line-height: 1.6;
+}
+
+.auth-alert {
+  padding: 12px 14px;
+  border: 1px solid #efc4c4;
+  border-radius: 8px;
+  background: #fff1f1;
+  color: #8d2828;
+  font-size: 14px;
+  line-height: 1.45;
+}
+
+.auth-button {
+  width: 100%;
+}
+
+.auth-footnote {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
 .app-frame {
   min-height: 100vh;
   display: grid;
@@ -61,6 +105,28 @@ button {
   display: flex;
   align-items: center;
   gap: 12px;
+}
+
+.account-panel {
+  align-items: flex-start;
+}
+
+.account-copy {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.account-sign-out {
+  width: fit-content;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: #e7f16f;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .mark {

@@ -5,6 +5,10 @@ import { getInvalidDiscoveredJobIds } from "@/lib/invalid-discovered-jobs";
 import { getDailyDiscovery } from "@/lib/daily-discovery";
 import { analyzeJobUrl, type JobUrlAnalysis } from "@/lib/job-url-analysis";
 import { getPassedDiscoveredJobs } from "@/lib/passed-discovered-jobs";
+import { getServerSession } from "next-auth";
+import { redirect } from "next/navigation";
+import { authOptions } from "@/lib/auth";
+import { isAllowedGitHubId } from "@/lib/authorization";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +31,12 @@ type PageProps = {
 };
 
 export default async function Home({ searchParams }: PageProps) {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user || !isAllowedGitHubId(session.user.githubId)) {
+    redirect("/sign-in");
+  }
+
   const params = await searchParams;
   await syncApplicationStatuses();
   const manualJobDraft = {
@@ -125,6 +135,7 @@ export default async function Home({ searchParams }: PageProps) {
       initialCreatePrError={params?.error ?? (params?.duplicate ? `Application already exists as PR #${params.duplicate}.` : null)}
       initialCreatedPrNumber={params?.createdPr ?? null}
       initialSelectedApplicationId={params?.application ?? null}
+      signedInGitHubLogin={session.user.githubLogin || session.user.name || "GitHub user"}
     />
   );
 }

@@ -9,6 +9,7 @@ import {
   getDiscoveredJobPassReasonLabel,
 } from "@/lib/discovered-job-pass-reasons";
 import { type PassedDiscoveredJob } from "@/lib/passed-discovered-jobs";
+import SignOutButton from "./sign-out-button";
 
 const jobs = [
   {
@@ -415,6 +416,7 @@ type DashboardClientProps = {
   initialJobDraft: typeof initialJobDraft;
   initialPassedDiscoveredJobs: PassedDiscoveredJob[];
   initialSelectedApplicationId: string | null;
+  signedInGitHubLogin: string;
 };
 
 export default function DashboardClient({
@@ -430,6 +432,7 @@ export default function DashboardClient({
   initialJobDraft,
   initialPassedDiscoveredJobs,
   initialSelectedApplicationId,
+  signedInGitHubLogin,
 }: DashboardClientProps) {
   const [activeNav, setActiveNav] = useState("Queue");
   const [selectedIndex, setSelectedIndex] = useState(0);
@@ -773,11 +776,12 @@ export default function DashboardClient({
           </a>
         </nav>
 
-        <section className="connect">
+        <section className="connect account-panel">
           <span className="status-dot" />
-          <div>
-            <strong>GitHub planned</strong>
-            <span>nickmoon1/Applications</span>
+          <div className="account-copy">
+            <strong>GitHub authenticated</strong>
+            <span>@{signedInGitHubLogin}</span>
+            <SignOutButton />
           </div>
         </section>
       </aside>
