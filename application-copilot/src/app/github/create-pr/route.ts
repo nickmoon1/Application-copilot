@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { createApplicationPr } from "@/lib/create-application-pr";
 
 export async function POST(request: Request) {
   const formData = await request.formData();
@@ -12,13 +13,13 @@ export async function POST(request: Request) {
     notes: String(formData.get("notes") ?? ""),
   };
 
-  const response = await fetch(new URL("/api/github/create-pr", request.url), {
+  const response = await createApplicationPr(new Request(request.url, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify(payload),
-  });
+  }));
   const data = await response.json().catch(() => ({}));
   const redirectUrl = new URL("/#github-reviews", request.url);
 
