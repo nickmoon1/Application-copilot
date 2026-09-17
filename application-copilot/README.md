@@ -49,6 +49,8 @@ Unauthenticated browser requests are redirected to `/sign-in`. Unauthenticated A
 
 ## Verification
 
+PostgreSQL migration is staged separately from the active SQLite dashboard. See [the migration runbook](POSTGRESQL_MIGRATION.md) before changing database credentials.
+
 ```bash
 npm run lint
 npm run build

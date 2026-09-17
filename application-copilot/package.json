@@ -10,7 +10,13 @@
     "test:auth": "node scripts/test-auth-boundary.mjs",
     "postinstall": "prisma generate",
     "db:generate": "prisma generate",
-    "db:setup": "node scripts/setup-local-db.mjs"
+    "db:setup": "node scripts/setup-local-db.mjs",
+    "db:backup": "node scripts/backup-sqlite.mjs",
+    "db:pg:generate": "node scripts/postgres-db.mjs generate",
+    "db:pg:validate": "node scripts/postgres-db.mjs validate",
+    "db:pg:migrate": "node scripts/postgres-db.mjs migrate deploy",
+    "db:pg:import": "node scripts/import-sqlite-to-postgres.mjs",
+    "test:db-import": "node --test scripts/test-sqlite-snapshot.mjs"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.2.0",

@@ -1,0 +1,55 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../../src/generated/prisma-postgresql"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("POSTGRES_DATABASE_URL")
+  directUrl = env("POSTGRES_DIRECT_URL")
+}
+
+model Application {
+  id         String   @id @default(cuid())
+  company    String
+  role       String
+  location   String
+  source     String
+  jobUrl     String
+  matchScore Int
+  notes      String
+  prNumber   Int      @unique
+  prUrl      String
+  branch     String
+  folder     String   @default("")
+  status     String   @default("PENDING_REVIEW")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model DiscoveryRun {
+  id        String   @id
+  runDate   String   @unique
+  payload   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model PassedDiscoveredJob {
+  jobId      String   @id
+  reason     String
+  company    String
+  role       String
+  location   String
+  source     String
+  jobUrl     String
+  summary    String
+  matchScore Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model InvalidDiscoveredJob {
+  id        String   @id
+  createdAt DateTime @default(now())
+}

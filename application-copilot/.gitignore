@@ -3,6 +3,7 @@
 # dependencies
 /node_modules
 /src/generated/prisma
+/src/generated/prisma-postgresql
 /.pnp
 .pnp.*
 .yarn/*
@@ -38,6 +39,7 @@ yarn-error.log*
 # local database
 prisma/dev.db
 prisma/dev.db-journal
+prisma/backups/
 
 # vercel
 .vercel
