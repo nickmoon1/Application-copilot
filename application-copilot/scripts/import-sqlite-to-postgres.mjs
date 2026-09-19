@@ -13,11 +13,12 @@ for (const entry of snapshot) console.log(`${entry.table}: ${entry.rows.length} 
 if (mode === "--dry-run") {
   console.log("Dry run complete. Source is valid; no PostgreSQL connection or changes made.");
 } else {
-  if (!process.env.POSTGRES_DIRECT_URL?.startsWith("postgres")) {
-    throw new Error("Set POSTGRES_DIRECT_URL before applying the import.");
+  const directUrl = process.env.DIRECT_URL;
+  if (!directUrl?.startsWith("postgres")) {
+    throw new Error("Set DIRECT_URL before applying the import.");
   }
-  const { PrismaClient } = await import("../src/generated/prisma-postgresql/index.js");
-  const client = new PrismaClient({ datasourceUrl: process.env.POSTGRES_DIRECT_URL });
+  const { PrismaClient } = await import("../src/generated/prisma/index.js");
+  const client = new PrismaClient({ datasourceUrl: directUrl });
   try {
     await client.$transaction(async (transaction) => {
       for (const model of ["application", "passedDiscoveredJob", "invalidDiscoveredJob", "discoveryRun"]) {
@@ -34,7 +35,7 @@ if (mode === "--dry-run") {
       }
     }, { maxWait: 10000, timeout: 60000 });
     console.log("Import committed. Every preserved field matches the SQLite snapshot.");
-    console.log("The dashboard still uses SQLite until configuration is deliberately switched.");
+    console.log("Import verification complete. Use db:verify-cutover after switching the application configuration.");
   } catch {
     console.error("Import failed or the target was not empty. Transaction rolled back. No credentials or records are printed.");
     process.exitCode = 1;

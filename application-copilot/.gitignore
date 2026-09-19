@@ -4,6 +4,7 @@
 /node_modules
 /src/generated/prisma
 /src/generated/prisma-postgresql
+/src/generated/prisma-sqlite
 /.pnp
 .pnp.*
 .yarn/*

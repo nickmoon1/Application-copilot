@@ -4,14 +4,15 @@ A private, human-in-the-loop workflow for discovering jobs, tailoring truthful a
 
 ## Getting started
 
-Install dependencies and prepare the local database:
+Copy `.env.example` to `.env.local`, add the GitHub credentials and Neon connection strings, then install dependencies and apply committed PostgreSQL migrations:
 
 ```bash
 npm install
-npm run db:setup
+npm run db:generate
+npm run db:migrate
 ```
 
-Copy `.env.example` to `.env` and add the GitHub App credentials, then run:
+Start the dashboard:
 
 ```bash
 npm run dev
@@ -21,11 +22,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ## Daily discovery
 
-The first dashboard load each Dallas calendar day runs discovery and stores that result in SQLite. Later page loads reuse the daily result. **Refresh Jobs** forces a new run.
+The first dashboard load each Dallas calendar day runs discovery and stores that result in PostgreSQL. Later page loads reuse the daily result. **Refresh Jobs** forces a new run.
 
 The daily queue ranks by portfolio fit, location, validation, and freshness. It caps a single company at two of the first five jobs when other qualified companies are available. Additional matching roles remain in the backlog.
 
-Configured sources include company connectors, Remotive U.S.-remote roles, and optional Adzuna Dallas-area aggregation. To enable Adzuna, register for credentials and add these values to `.env`:
+Configured sources include company connectors, Remotive U.S.-remote roles, and optional Adzuna Dallas-area aggregation. To enable Adzuna, register for credentials and add these values to `.env.local`:
 
 ```bash
 ADZUNA_APP_ID=
@@ -49,9 +50,10 @@ Unauthenticated browser requests are redirected to `/sign-in`. Unauthenticated A
 
 ## Verification
 
-PostgreSQL migration is staged separately from the active SQLite dashboard. See [the migration runbook](POSTGRESQL_MIGRATION.md) before changing database credentials.
+PostgreSQL is the active database. See [the migration runbook](POSTGRESQL_MIGRATION.md) for backup, import, verification, and rollback notes.
 
 ```bash
 npm run lint
 npm run build
+npm run db:verify-cutover
 ```
