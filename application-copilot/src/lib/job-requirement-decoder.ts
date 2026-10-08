@@ -392,7 +392,13 @@ function buildHardGates(searchable: string, requiredYears: number | null, timing
     gates.push({ label: "Security clearance", status: "REVIEW", detail: "A clearance requirement was detected and must be confirmed manually." });
   }
 
-  if (searchable.includes("certification required") || searchable.includes("required certification")) {
+  const hasRequiredCertification = [
+    /\bcertification (?:is )?required\b/,
+    /\brequired (?:professional |industry |technical )?certification\b/,
+    /\bmust (?:hold|have|possess) (?:an? )?[^.]{0,50}\bcertification\b/,
+  ].some((pattern) => pattern.test(searchable));
+
+  if (hasRequiredCertification) {
     gates.push({ label: "Required certification", status: "REVIEW", detail: "A mandatory certification signal was detected; confirm the exact credential." });
   }
 

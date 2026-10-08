@@ -277,7 +277,7 @@ export function generateApplicationPacket(application: ApplicationDraft) {
   const locationReadiness = getLocationReadiness(application);
   const answerDrafts = {
     whyThisRole: [
-      `I am interested in the ${application.role} role at ${application.company} because it matches my work across data analysis, Python, SQL, predictive modeling, and stakeholder-facing insights.`,
+      `I am interested in the ${application.role} role at ${application.company} because it aligns with my verified analytical and stakeholder-facing experience.`,
       strengths.primaryEvidence,
     ].join(" "),
     whyThisCompany:
@@ -310,14 +310,14 @@ export function generateApplicationPacket(application: ApplicationDraft) {
 }
 
 function selectStrengths(application: ApplicationDraft) {
-  const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+  const searchable = getJobEvidenceText(application).toLowerCase();
   const normalizedSearchable = normalizeKeywordText(searchable);
   const roleFamily = classifyRoleTitle(application.role);
   const evidenceUsed = new Set<string>();
   const technicalFit = new Set<string>();
   const projectExamples: string[] = [];
 
-  addEvidence("Python, SQL, EDA, data cleaning, feature engineering, and statistical modeling.", evidenceUsed, technicalFit);
+  addEvidence("SQL, Excel, data analysis, data cleaning, validation, and stakeholder-facing reporting.", evidenceUsed, technicalFit);
 
   if (
     roleFamily === "engineering" ||
@@ -369,8 +369,8 @@ function selectStrengths(application: ApplicationDraft) {
   }
 
   if (projectExamples.length === 0) {
-    projectExamples.push("Predictive Modeling & Forecasting: Python-based regression, classification, and time-series projects.");
     projectExamples.push("Tableau Dashboards: stakeholder-ready dashboards for trends, forecasts, and KPIs.");
+    projectExamples.push("CFPB Consumer Complaint Analytics: Python, SQL, data validation, and dashboard metrics using public data.");
   }
 
   return {
@@ -389,7 +389,7 @@ function addEvidence(value: string, evidenceUsed: Set<string>, technicalFit: Set
 }
 
 function buildKeywordGate(application: ApplicationDraft) {
-  const searchable = normalizeKeywordText(`${application.role} ${application.notes} ${application.source} ${application.jobUrl}`);
+  const searchable = normalizeKeywordText(getJobEvidenceText(application));
   const evidenceMatches = getEvidenceMatches(application, searchable);
   const matchedAliases = new Set(
     evidenceMatches.flatMap((match) => [match.label, match.resumeTerm, ...match.aliases].filter(Boolean).map((value) => normalizeKeywordText(value!))),
@@ -466,7 +466,7 @@ function getEvidenceDefinitions() {
 
 function scoreEvidenceMatch(match: EvidenceMatch, application: ApplicationDraft) {
   const role = normalizeKeywordText(application.role);
-  const notes = normalizeKeywordText(application.notes);
+  const notes = normalizeKeywordText(getJobEvidenceText(application));
   const roleScore = match.aliases.some((alias) => containsNormalizedPhrase(role, normalizeKeywordText(alias))) ? 8 : 0;
   const noteScore = match.jobTerms.reduce(
     (score, term) => score + countNormalizedPhrase(notes, normalizeKeywordText(term)) * 2,
@@ -978,7 +978,7 @@ function buildResumeTailoring(
   const headline = getResumeHeadline(application);
   const summary = getResumeSummary(application, strengths, keywordGate);
   const skillGroups = getResumeSkillGroups(matchedSkills);
-  const targetAlignment = getTargetRoleAlignment(matchedSkills, keywordGate);
+  const targetAlignment = getTargetRoleAlignment(keywordGate);
   const selectedProjects = getSelectedResumeProjects(application, keywordGate);
   const locationReadiness = getLocationReadiness(application);
   const competenciesHeading = isAnalystReportingRole(application) ? "CORE COMPETENCIES" : "ROLE ALIGNMENT and CORE COMPETENCIES";
@@ -1119,7 +1119,7 @@ function getToolListForSummary(application: ApplicationDraft) {
 }
 
 function getPortfolioCaseStudy(application: ApplicationDraft) {
-  const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+  const searchable = getJobEvidenceText(application).toLowerCase();
 
   if (
     searchable.includes("financial") ||
@@ -1192,11 +1192,10 @@ function getPortfolioCaseStudy(application: ApplicationDraft) {
   };
 }
 
-function getTargetRoleAlignment(
-  matchedSkills: string[],
-  keywordGate: ReturnType<typeof buildKeywordGate>,
-) {
-  const jobMatchedCompetencies = keywordGate.evidenceMatches.map((match) => match.resumeTerm ?? match.label);
+function getTargetRoleAlignment(keywordGate: ReturnType<typeof buildKeywordGate>) {
+  const jobMatchedCompetencies = keywordGate.evidenceMatches
+    .filter((match) => match.category !== "tool")
+    .map((match) => match.resumeTerm ?? match.label);
   const competencyFallback = [
     "Business Analytics",
     "Data Analysis",
@@ -1204,7 +1203,7 @@ function getTargetRoleAlignment(
     "Cross-functional Collaboration",
   ];
 
-  return dedupeResumeTerms([...jobMatchedCompetencies, ...matchedSkills, ...competencyFallback]).slice(0, 12);
+  return dedupeResumeTerms([...jobMatchedCompetencies, ...competencyFallback]).slice(0, 10);
 }
 
 function formatCompetencyLines(competencies: string[]) {
@@ -1397,7 +1396,7 @@ function getSelectedResumeProjects(
       }, 0);
       const contentScore = scoreTextForSearch(
         `${project.name} ${project.summary}`,
-        `${application.role} ${application.notes}`,
+        getJobEvidenceText(application),
         weightedTerms,
       );
 
@@ -1420,8 +1419,14 @@ function getProjectBusinessFitScore(
   project: { name: string; summary: string },
   application: ApplicationDraft,
 ) {
-  const job = normalizeKeywordText(`${application.role} ${application.notes}`);
+  const job = normalizeKeywordText(getJobEvidenceText(application));
   const projectText = normalizeKeywordText(`${project.name} ${project.summary}`);
+  const isReportingRole = ["reporting", "dashboard", "power bi", "tableau", "data synthesis"].some((signal) =>
+    containsNormalizedPhrase(job, normalizeKeywordText(signal)),
+  );
+
+  if (isReportingRole && containsNormalizedPhrase(projectText, "tableau dashboards")) return 80;
+
   const isRevenueRole = [
     "revenue management",
     "yield management",
@@ -1460,9 +1465,9 @@ function getResumeSkillGroups(matchedSkills: string[]) {
   const prioritizedSkills = new Set(matchedSkills);
 
   return [
-    `Programming: ${joinKnownSkills(["Python", "SQL"], prioritizedSkills)}`,
-    `Visualization: ${joinKnownSkills(["Power BI", "Tableau", "Excel"], prioritizedSkills)}`,
-    `Analytics: ${joinKnownSkills([
+    buildSkillGroup("Programming", ["Python", "SQL"], prioritizedSkills),
+    buildSkillGroup("Visualization", ["Power BI", "Tableau", "Excel"], prioritizedSkills),
+    buildSkillGroup("Analytics", [
       "EDA",
       "Statistical Modeling",
       "Forecasting",
@@ -1470,24 +1475,19 @@ function getResumeSkillGroups(matchedSkills: string[]) {
       "Feature Engineering",
       "KPI Reporting",
       "Dashboard Development",
-    ], prioritizedSkills)}`,
-    `Platforms: ${joinKnownSkills(["Snowflake", "Databricks", "Linux", "Azure"], prioritizedSkills)}`,
-    "Business: Reporting, Process Improvement, Stakeholder Communication, Business Intelligence",
-  ];
+    ], prioritizedSkills),
+    buildSkillGroup("Platforms", ["Snowflake", "Databricks", "Linux", "Azure"], prioritizedSkills),
+  ].filter((group): group is string => Boolean(group));
 }
 
-function joinKnownSkills(skills: string[], prioritizedSkills: Set<string>) {
-  const knownSkills = new Set(Object.values(profile.skills).flat());
-  const orderedSkills = [
-    ...skills.filter((skill) => prioritizedSkills.has(skill)),
-    ...skills.filter((skill) => !prioritizedSkills.has(skill)),
-  ].filter((skill) => knownSkills.has(skill) || skill === "Excel");
+function buildSkillGroup(label: string, skills: string[], prioritizedSkills: Set<string>) {
+  const selected = skills.filter((skill) => prioritizedSkills.has(skill));
 
-  return Array.from(new Set(orderedSkills)).join(", ");
+  return selected.length > 0 ? `${label}: ${selected.join(", ")}` : "";
 }
 
 function getMatchedSkills(application: ApplicationDraft, keywordGate: ReturnType<typeof buildKeywordGate>) {
-  const searchable = `${application.role} ${application.notes} ${application.source}`.toLowerCase();
+  const searchable = getJobEvidenceText(application).toLowerCase();
   const allSkills = Object.values(profile.skills).flat();
   const matched = allSkills.filter((skill) => searchable.includes(skill.toLowerCase()));
   const verified = keywordGate.verifiedKeywords.filter((keyword) => allSkills.includes(keyword));
@@ -1495,6 +1495,24 @@ function getMatchedSkills(application: ApplicationDraft, keywordGate: ReturnType
   const baseline = ["Python", "SQL", "Excel"].filter((skill) => allSkills.includes(skill) || skill === "Excel");
 
   return Array.from(new Set([...verified, ...transferable, ...matched, ...baseline])).slice(0, 14);
+}
+
+function getJobEvidenceText(application: ApplicationDraft) {
+  const marker = "Job URL analysis:";
+  const markerIndex = application.notes.lastIndexOf(marker);
+  const canonicalNotes = markerIndex >= 0
+    ? application.notes
+        .slice(markerIndex)
+        .split("\n")
+        .filter((line) =>
+          ["- Summary:", "- Keywords to consider:", "- Employer problems:", "- Responsibilities:", "- Requirements:"].some(
+            (prefix) => line.trim().startsWith(prefix),
+          ),
+        )
+        .join(" ")
+    : application.notes;
+
+  return `${application.role} ${canonicalNotes} ${application.source} ${application.jobUrl}`;
 }
 
 function getPrioritizedExperience() {

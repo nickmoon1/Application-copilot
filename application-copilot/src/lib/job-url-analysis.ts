@@ -66,33 +66,47 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
   const hostname = new URL(url).hostname.replace(/^www\./, "");
   const warnings: string[] = [];
   const html = await fetchJobHtml(url);
-  const text = cleanText(stripHtml(html));
+  const pageText = cleanText(stripHtml(html));
   const jsonLd = extractJsonLd(html);
+  const structuredDescription = getJsonLdDescription(jsonLd);
+  const jobText = structuredDescription || pageText;
+  const structuredTitle = getJsonLdJobPostingValue(jsonLd, ["title", "name"]);
   const title = pickFirst([
+    structuredTitle,
     getJsonLdValue(jsonLd, ["title", "name"]),
     getMetaContent(html, "og:title"),
     getTitleTag(html),
   ]);
   const company = pickCompany([
-    getJsonLdValue(jsonLd, ["hiringOrganization.name", "organization.name", "company"]),
+    getJsonLdJobPostingValue(jsonLd, ["hiringOrganization.name", "organization.name", "company"]),
     inferCompanyFromTitle(title),
-    inferCompanyFromText(text),
+    inferCompanyFromText(jobText),
     getMetaContent(html, "og:site_name"),
     inferCompanyFromHost(hostname),
   ]);
-  const role = cleanRole(title, company) || title || "";
-  const inferredRole = inferRoleFromText(text);
-  const analyzedRole = inferredRole || role;
+  const role = structuredTitle || cleanRole(title, company) || title || "";
+  const inferredRole = inferRoleFromText(jobText);
+  const analyzedRole = isGenericRole(role) ? inferredRole || role : role;
   const location = pickFirst([
     getJsonLdLocation(jsonLd),
     inferLocationFromTitle(title),
     inferLocationFromUrl(url),
-    inferLocation(text),
+    inferLocation(jobText),
   ]);
-  const postedDate = getJsonLdValue(jsonLd, ["datePosted"]);
-  const closingDate = getJsonLdValue(jsonLd, ["validThrough"]);
-  const keywords = extractKeywords(text);
-  const responsibilities = extractSignalLines(text, [
+  const postedDate = getJsonLdJobPostingValue(jsonLd, ["datePosted"]);
+  const closingDate = getJsonLdJobPostingValue(jsonLd, ["validThrough"]);
+  const keywords = extractKeywords(jobText);
+  const responsibilityText = extractSectionText(
+    jobText,
+    ["day to day/job function", "responsibilities", "what you will do", "duties", "essential functions"],
+    ["basic qualifications", "minimum qualifications", "required qualifications", "requirements", "preferred qualifications"],
+  );
+  const requirementText = extractSectionText(
+    jobText,
+    ["basic qualifications", "minimum qualifications", "required qualifications", "requirements", "what you bring"],
+    ["preferred qualifications", "about ntt data", "where required by law", "equal opportunity"],
+  );
+  const responsibilities = extractSignalLines(responsibilityText || jobText, [
     "responsibilities",
     "what you will do",
     "duties",
@@ -100,7 +114,7 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     "role will",
     "you will",
   ]);
-  const requirements = extractSignalLines(text, [
+  const requirements = extractSignalLines(requirementText || jobText, [
     "requirements",
     "qualifications",
     "what you bring",
@@ -109,7 +123,7 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
     "preferred",
   ]);
 
-  if (text.length < 500) {
+  if (jobText.length < 500) {
     warnings.push("The job page returned limited readable text. Review the posting manually before relying on this analysis.");
   }
 
@@ -127,7 +141,7 @@ export async function analyzeJobUrl(jobUrl: string): Promise<JobUrlAnalysis> {
   });
   const requirementAnalysis = decodeJobRequirements({
     closingDate,
-    description: `${text} ${responsibilities.join(" ")} ${requirements.join(" ")}`,
+    description: `${responsibilities.join(" ")} ${requirements.join(" ")}`.trim() || jobText,
     keywords,
     location,
     postedDate,
@@ -210,10 +224,15 @@ function extractJsonLd(html: string) {
 
   for (const match of matches) {
     try {
-      const parsed = JSON.parse(decodeEntities(match[1]));
+      const parsed = JSON.parse(match[1]);
       records.push(...(Array.isArray(parsed) ? parsed : [parsed]));
     } catch {
-      // Malformed structured data is common on job boards; fall back to HTML text.
+      try {
+        const parsed = JSON.parse(decodeEntities(match[1]));
+        records.push(...(Array.isArray(parsed) ? parsed : [parsed]));
+      } catch {
+        // Malformed structured data is common on job boards; fall back to HTML text.
+      }
     }
   }
 
@@ -234,6 +253,49 @@ function getJsonLdValue(records: unknown[], paths: string[]) {
   }
 
   return "";
+}
+
+function getJsonLdDescription(records: unknown[]) {
+  for (const record of records) {
+    for (const candidate of expandGraph(record)) {
+      if (!isJobPosting(candidate)) continue;
+
+      const description = readPath(candidate, "description");
+
+      if (typeof description === "string" && description.trim()) {
+        return cleanText(stripHtml(decodeEntities(description)));
+      }
+    }
+  }
+
+  return "";
+}
+
+function getJsonLdJobPostingValue(records: unknown[], paths: string[]) {
+  for (const record of records) {
+    for (const candidate of expandGraph(record)) {
+      if (!isJobPosting(candidate)) continue;
+
+      for (const path of paths) {
+        const value = readPath(candidate, path);
+
+        if (typeof value === "string" && value.trim()) {
+          return cleanText(value);
+        }
+      }
+    }
+  }
+
+  return "";
+}
+
+function isJobPosting(value: unknown) {
+  if (!value || typeof value !== "object") return false;
+
+  const type = (value as Record<string, unknown>)["@type"];
+  const types = Array.isArray(type) ? type : [type];
+
+  return types.some((item) => typeof item === "string" && item.toLowerCase() === "jobposting");
 }
 
 function getJsonLdLocation(records: unknown[]) {
@@ -313,6 +375,7 @@ function stripHtml(html: string) {
   return html
     .replace(/<script[\s\S]*?<\/script>/gi, " ")
     .replace(/<style[\s\S]*?<\/style>/gi, " ")
+    .replace(/<\/?(?:p|li|ul|ol|div|section|h[1-6]|br)[^>]*>/gi, ". ")
     .replace(/<[^>]+>/g, " ");
 }
 
@@ -351,6 +414,12 @@ function cleanRole(title: string, company: string) {
     .replace(/\s+[-|]\s+.*$/, "")
     .replace(/\bcareer\b.*$/i, "")
     .trim();
+}
+
+function isGenericRole(role: string) {
+  const normalized = role.trim().toLowerCase();
+
+  return !normalized || ["job detail", "job details", "career", "careers", "job", "jobs"].includes(normalized);
 }
 
 function inferCompanyFromHost(hostname: string) {
@@ -509,7 +578,11 @@ function cleanLocation(value: string) {
 }
 
 function normalizeRegion(value: string) {
-  return value.trim().toLowerCase() === "texas" ? "TX" : value.trim().toUpperCase();
+  const normalized = value.trim().toLowerCase();
+
+  if (normalized === "texas" || normalized === "tx" || normalized === "us-tx") return "TX";
+
+  return value.trim().toUpperCase();
 }
 
 function titleCaseLocation(value: string) {
@@ -562,6 +635,25 @@ function extractKeywords(text: string) {
     .map((keyword) => titleCaseKeyword(keyword));
 }
 
+function extractSectionText(text: string, startAnchors: string[], endAnchors: string[]) {
+  const normalized = text.toLowerCase();
+  const starts = startAnchors
+    .map((anchor) => ({ anchor, index: normalized.indexOf(anchor.toLowerCase()) }))
+    .filter((candidate) => candidate.index >= 0)
+    .sort((left, right) => left.index - right.index);
+  const start = starts[0];
+
+  if (!start) return "";
+
+  const contentStart = start.index + start.anchor.length;
+  const ends = endAnchors
+    .map((anchor) => normalized.indexOf(anchor.toLowerCase(), contentStart))
+    .filter((index) => index > contentStart);
+  const contentEnd = ends.length > 0 ? Math.min(...ends) : text.length;
+
+  return text.slice(contentStart, contentEnd).trim();
+}
+
 function titleCaseKeyword(keyword: string) {
   const uppercase = new Set(["sql", "kpi", "etl"]);
 
@@ -590,6 +682,17 @@ function extractSignalLines(text: string, anchors: string[]) {
 function isBoilerplateJobSentence(value: string) {
   const normalized = value.toLowerCase();
   const boilerplateSignals = [
+    "watch the video",
+    "close the popup",
+    "loading...",
+    "loading .",
+    "skip to main content",
+    "join our talent community",
+    "share this job",
+    "similar jobs",
+    "privacy policy",
+    "cookie policy",
+    "actual compensation will",
     "actual compensation will be determined",
     "all applicants will be considered",
     "current dsv employee",

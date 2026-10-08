@@ -292,7 +292,18 @@ function shouldUseAnalyzedSource(source: string) {
 }
 
 function appendJobAnalysisNotes(notes: string, analysis: JobUrlAnalysis) {
-  return [notes, analysis.tailoringNotes].filter(Boolean).join("\n\n");
+  const existingNotes = stripGeneratedAnalysis(notes);
+  const preservedNotes = isGeneratedDiscoverySummary(existingNotes) ? "" : existingNotes;
+
+  return [preservedNotes, analysis.tailoringNotes].filter(Boolean).join("\n\n");
+}
+
+function stripGeneratedAnalysis(notes: string) {
+  return notes.replace(/\n*Job URL analysis:[\s\S]*$/i, "").trim();
+}
+
+function isGeneratedDiscoverySummary(notes: string) {
+  return /^Discovered from [\s\S]+Location fit:/i.test(notes);
 }
 
 function appendAnalysisWarning(notes: string, warning: string) {
