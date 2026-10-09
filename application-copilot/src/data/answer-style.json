@@ -83,7 +83,7 @@
     "For experience descriptions, reuse the user's bullet structure and practical wording."
   ],
   "resumeFormatProfile": {
-    "source": "Resume_citi.docx provided 2026-06-06; American Airlines analyst packet provided 2026-07-11",
+    "source": "Resume_citi.docx provided 2026-06-06; American Airlines analyst packet provided 2026-07-11; NTT DATA submitted packet provided 2026-10-09",
     "layout": [
       "Single-column resume layout.",
       "Compact Calibri-style formatting around 10 pt.",
@@ -128,6 +128,13 @@
       "For each role, prioritize the most relevant four to five bullets instead of overloading the resume.",
       "For banking, analytics, and data roles, emphasize SQL, Python, dashboards, data validation, KPI reporting, stakeholder communication, and operational decision support."
     ],
+    "nttReportingCalibration": [
+      "For reporting, program-support, financial-services IT, and system-transition roles, consider AgFirst Farm Credit Bank evidence before generic project language.",
+      "Use direct Excel evidence such as XLOOKUP, PivotTables, and PivotCharts only when the posting emphasizes spreadsheet analysis or reporting.",
+      "Prefer two highly relevant work examples over summarizing every position in the cover letter.",
+      "Keep cover letters concise enough for a one-page document, including the signature.",
+      "Do not include paused education in application materials unless the candidate explicitly restores it to the verified profile."
+    ],
     "americanAirlinesAnalystCalibration": [
       "For American Airlines, transportation, operations, benefits, performance, reporting, and contact-center analytics roles, use the Analyst | Business Analytics | Data Reporting resume direction.",
       "Emphasize performance reporting, KPI development, dashboard creation, process improvement, data validation, operational analysis, and communication with technical and non-technical stakeholders.",
@@ -144,5 +151,5 @@
     "Saving protected demographic or disability disclosures in application packet files",
     "Treating voluntary disclosure answers as reusable writing examples"
   ],
-  "calibrationStatus": "Calibrated from Citi employer form answers and Resume_citi.docx provided on 2026-06-06, then updated from the American Airlines analyst application packet provided on 2026-07-11. Sensitive personal, demographic, disability, and address fields were intentionally excluded."
+  "calibrationStatus": "Calibrated from Citi employer form answers and Resume_citi.docx provided on 2026-06-06, updated from the American Airlines analyst packet provided on 2026-07-11, and refined from the submitted NTT DATA packet provided on 2026-10-09. Sensitive personal, demographic, disability, and address fields were intentionally excluded."
 }

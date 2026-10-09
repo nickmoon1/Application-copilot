@@ -47,10 +47,10 @@ const explicitEvidenceDefinitions: EvidenceDefinition[] = [
   },
   {
     label: "Excel",
-    aliases: ["excel", "microsoft excel", "spreadsheets"],
+    aliases: ["excel", "microsoft excel", "spreadsheets", "xlookup", "pivot table", "pivot tables", "pivottables", "pivot chart", "pivot charts", "pivotcharts"],
     category: "tool",
-    evidence: "Used Excel in business and research analysis workflows and reporting.",
-    sources: ["Dallas Data Science Academy", "University of Nebraska-Lincoln"],
+    evidence: "Used Excel, including XLOOKUP, PivotTables, and PivotCharts, to organize, analyze, validate, and communicate data.",
+    sources: ["University of Nebraska-Lincoln", "Dallas Data Science Academy"],
   },
   {
     label: "Power BI",
@@ -85,7 +85,28 @@ const explicitEvidenceDefinitions: EvidenceDefinition[] = [
     aliases: ["reporting", "reports", "analytical summaries", "technical reports"],
     category: "capability",
     evidence: "Prepared dashboards, analytical summaries, presentations, and technical reports for business, research, and operational decisions.",
-    sources: ["Dallas Data Science Academy", "Thales Group", "University of Nebraska-Lincoln"],
+    sources: ["AgFirst Farm Credit Bank", "Dallas Data Science Academy", "Thales Group", "University of Nebraska-Lincoln"],
+  },
+  {
+    label: "Reporting Dependencies",
+    aliases: ["reporting dependencies", "report dependencies", "reporting library", "report library", "report inventory", "system transition"],
+    category: "capability",
+    evidence: "Analyzed an enterprise reporting library, identified reports affected by a core-system replacement, and documented dependencies for transition planning.",
+    sources: ["AgFirst Farm Credit Bank"],
+  },
+  {
+    label: "Requirements Analysis",
+    aliases: ["requirements analysis", "requirements gathering", "business requirements", "clarify requirements", "clarify data questions"],
+    category: "capability",
+    evidence: "Evaluated reporting dependencies, documented affected assets, and worked with technical and business stakeholders to support system-transition planning.",
+    sources: ["AgFirst Farm Credit Bank"],
+  },
+  {
+    label: "Program Support",
+    aliases: ["program support", "project support", "program related", "status reporting", "status updates"],
+    category: "capability",
+    evidence: "Supported research, system-transition, and technology initiatives through structured analysis, documentation, reporting, and cross-team coordination.",
+    sources: ["AgFirst Farm Credit Bank", "University of Nebraska-Lincoln", "Benedict College"],
   },
   {
     label: "Trend Analysis",
@@ -127,7 +148,7 @@ const explicitEvidenceDefinitions: EvidenceDefinition[] = [
     aliases: ["cross functional", "cross-functional", "collaboration", "collaborate", "partner with"],
     category: "capability",
     evidence: "Collaborated with interdisciplinary and cross-functional teams in transportation, research, analytics, and education settings.",
-    sources: ["Thales Group", "University of Nebraska-Lincoln", "Benedict College"],
+    sources: ["AgFirst Farm Credit Bank", "Thales Group", "University of Nebraska-Lincoln", "Benedict College"],
   },
   {
     label: "Root Cause Analysis",
@@ -299,7 +320,7 @@ export function generateApplicationPacket(application: ApplicationDraft) {
 
   return {
     answers: JSON.stringify(answerDrafts, null, 2),
-    coverLetter: buildCoverLetter(application, strengths, keywordGate),
+    coverLetter: buildCoverLetter(application, strengths),
     checklist: buildChecklist(application, questionsToVerify, locationReadiness),
     keywordReport: buildKeywordReport(application, keywordGate),
     reviewNotes: buildReviewNotes(application, strengths, questionsToVerify, keywordGate, locationReadiness),
@@ -723,54 +744,29 @@ function isAnalystReportingRole(application: ApplicationDraft) {
   ].some((signal) => searchable.includes(signal));
 }
 
-function isAmericanAirlinesStyleRole(application: ApplicationDraft) {
-  const searchable = `${application.company} ${application.role} ${application.notes} ${application.source}`.toLowerCase();
-
-  return (
-    searchable.includes("american airlines") ||
-    searchable.includes("jobs.aa.com") ||
-    searchable.includes("airline") ||
-    searchable.includes("transportation")
-  );
-}
-
 function buildCoverLetter(
   application: ApplicationDraft,
   strengths: ReturnType<typeof selectStrengths>,
-  keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   const portfolioCaseStudy = getPortfolioCaseStudy(application);
   const locationReadiness = getLocationReadiness(application);
   const useAnalystTone = isAnalystReportingRole(application);
-  const roleSignals = getRoleSignalLabels(keywordGate, 4);
-  const evidenceExamples = [...keywordGate.evidenceMatches]
-    .filter((match) => match.matchLevel === "direct")
-    .sort((left, right) => scoreCoverLetterEvidence(right) - scoreCoverLetterEvidence(left))
-    .slice(0, 2);
-  const transportationBridge = isAmericanAirlinesStyleRole(application)
-    ? " Working within a highly regulated transportation environment taught me the importance of accuracy, accountability, timely reporting, and cross-functional communication."
-    : "";
+  const companyName = application.company.replace(/[.!?]+$/, "");
 
   if (useAnalystTone) {
-    return `# ${application.company} - ${application.role}
+    const experienceParagraphs = getAnalystCoverLetterExperience(application);
+
+    return `# ${companyName} - ${application.role}
 
 Dear Hiring Manager,
 
-I am excited to apply for the ${application.role} position with ${application.company}. As a Business Analytics professional with graduate-level education in Computer Science and Information Systems & Business Analytics, I have built a strong foundation in transforming operational and business data into meaningful insights. My experience includes using SQL, Python, Excel, Tableau, and Power BI to improve reporting, analyze performance, validate data, and support data-driven decision making.
+I am writing to express my interest in the ${application.role} position at ${companyName}. With an MS in Computer Science and experience in data analysis, reporting, data validation, and IT systems support, I am excited about the opportunity to contribute to the team's data-driven decision-making and technology initiatives.
 
-${roleSignals.length > 0 ? `The position's emphasis on ${formatNaturalList(roleSignals)} is especially relevant to my background. ${evidenceExamples.map((match) => match.evidence).join(" ")}` : ""}
+${experienceParagraphs.join("\n\n")}
 
-Most recently, I have completed business analytics and data science projects where I designed reporting workflows, developed KPI-focused dashboards, conducted trend analysis, and presented recommendations to technical and non-technical stakeholders. These experiences strengthened my ability to communicate analytical findings in ways that support business strategy and operational improvement.
+What interests me most about this opportunity is the combination of technical analysis, reporting, and collaboration across business and technology teams. I believe my experience working with diverse datasets, documenting reporting needs, and translating technical findings into useful information would allow me to contribute meaningfully to ${companyName}.${locationReadiness.coverLetter ? ` ${locationReadiness.coverLetter}` : ""}
 
-Previously, as a Field Engineer with Thales Group, I analyzed operational transportation data, investigated system performance issues, validated critical datasets, and collaborated with cross-functional teams to support reliable operations.${transportationBridge}
-
-In addition to my industry experience, my work in higher education has allowed me to mentor students, coordinate research initiatives, and collaborate with faculty on AI and analytics projects. These experiences strengthened my communication skills while reinforcing my interest in using data to solve organizational challenges.
-
-What excites me most about ${application.company} is the opportunity to apply my analytical background to support meaningful reporting, performance analysis, and process improvement. I enjoy identifying trends, improving reporting processes, and helping business leaders make informed decisions using reliable data. I am confident my combination of technical skills, business analytics training, and collaborative approach would allow me to contribute effectively to this role.
-
-${locationReadiness.coverLetter}
-
-Thank you for your time and consideration. I would welcome the opportunity to discuss how my background aligns with the needs of ${application.company}.
+Thank you for considering my application. I welcome the opportunity to discuss how my analytical background, technical skills, and problem-solving experience align with the needs of your team.
 
 Sincerely,
 ${profile.name}
@@ -800,16 +796,47 @@ ${profile.links.portfolio}
 `;
 }
 
-function getRoleSignalLabels(keywordGate: ReturnType<typeof buildKeywordGate>, limit: number) {
-  return dedupeResumeTerms(keywordGate.evidenceMatches.map((match) => match.resumeTerm ?? match.label)).slice(0, limit);
-}
+function getAnalystCoverLetterExperience(application: ApplicationDraft) {
+  const job = normalizeKeywordText(getJobEvidenceText(application));
+  const paragraphs: string[] = [];
+  const includesAny = (signals: string[]) =>
+    signals.some((signal) => containsNormalizedPhrase(job, normalizeKeywordText(signal)));
 
-function scoreCoverLetterEvidence(match: EvidenceMatch) {
-  const projectScore = match.sources.some((source) => source.toLowerCase().includes("project")) ? 6 : 0;
-  const specificityScore = /\d/.test(match.evidence) ? 3 : 0;
-  const categoryScore = match.category === "domain" ? 4 : match.category === "capability" ? 2 : 0;
+  if (includesAny(["data analysis", "reporting", "excel", "sql", "data validation", "data quality"])) {
+    paragraphs.push(
+      "During my time as a Data Analyst and Research Assistant at the University of Nebraska-Lincoln, I used Python, SQL, and Excel to prepare, analyze, and validate datasets while supporting research reporting. I used Excel tools including XLOOKUP, PivotTables, and PivotCharts to organize and communicate findings, and improved data-processing and reporting efficiency by 30% through structured analytical workflows.",
+    );
+  }
 
-  return projectScore + specificityScore + categoryScore;
+  if (includesAny(["reporting", "program support", "technology", "system", "requirements", "banking", "financial", "reconcile"])) {
+    const dashboardTraining = includesAny(["power bi", "tableau", "dashboard", "visualization"])
+      ? " My training at Dallas Data Science Academy also provided hands-on experience with Power BI, Tableau, SQL, and Python for data analysis, visualization, and performance reporting."
+      : "";
+
+    paragraphs.push(
+      `At AgFirst Farm Credit Bank, I analyzed an enterprise reporting library to identify reports affected by the replacement of the bank's core loan accounting system. This work required evaluating reporting dependencies, documenting affected assets, and collaborating with technical and business stakeholders in an Agile environment.${dashboardTraining}`,
+    );
+  }
+
+  if (paragraphs.length < 2 && includesAny(["power bi", "tableau", "dashboard", "visualization", "performance reporting"])) {
+    paragraphs.push(
+      "My training at Dallas Data Science Academy provided hands-on experience using Power BI, Tableau, SQL, Python, and Excel for data analysis, visualization, validation, and performance reporting.",
+    );
+  }
+
+  if (paragraphs.length < 2 && includesAny(["operations", "transportation", "system performance", "troubleshooting", "data integrity"])) {
+    paragraphs.push(
+      "As a CBTC Field Engineer with Thales Group, I investigated operational system issues, performed technical validation and integrity checks, and communicated findings with engineering teams in a regulated transportation environment.",
+    );
+  }
+
+  if (paragraphs.length < 2) {
+    paragraphs.push(
+      "My analytics work includes building structured workflows with SQL, Python, Excel, Power BI, and Tableau to clean data, validate results, develop dashboards, and communicate findings to technical and non-technical stakeholders.",
+    );
+  }
+
+  return paragraphs.slice(0, 2);
 }
 
 function formatNaturalList(values: string[]) {
@@ -974,7 +1001,7 @@ function buildResumeTailoring(
   keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   const matchedSkills = getMatchedSkills(application, keywordGate);
-  const prioritizedExperience = getPrioritizedExperience();
+  const prioritizedExperience = getPrioritizedExperience(application, keywordGate);
   const headline = getResumeHeadline(application);
   const summary = getResumeSummary(application, strengths, keywordGate);
   const skillGroups = getResumeSkillGroups(matchedSkills);
@@ -1062,6 +1089,15 @@ ${answerStyle.resumeFormatProfile.experiencePattern.map((item) => `- ${item}`).j
 }
 
 function getResumeHeadline(application: ApplicationDraft) {
+  const normalizedRole = normalizeKeywordText(application.role);
+
+  if (
+    containsNormalizedPhrase(normalizedRole, "it data analyst") ||
+    containsNormalizedPhrase(normalizedRole, "data reporting analyst")
+  ) {
+    return "IT DATA & REPORTING ANALYTICS";
+  }
+
   const roleFamily = classifyRoleTitle(application.role);
 
   switch (roleFamily) {
@@ -1255,6 +1291,18 @@ function getExperienceBullets(
   keywordGate: ReturnType<typeof buildKeywordGate>,
 ) {
   const organization = item.organization.toLowerCase();
+
+  if (organization.includes("agfirst")) {
+    return prioritizeBullets(
+      [
+        "Analyzed an enterprise reporting library to identify reports affected by replacement of the bank's core loan accounting system.",
+        "Evaluated reporting dependencies and documented affected assets to support system-transition planning.",
+        "Collaborated with technical and business stakeholders in an Agile development environment.",
+      ],
+      application,
+      keywordGate,
+    );
+  }
 
   if (organization.includes("data science academy")) {
     return prioritizeBullets(
@@ -1464,9 +1512,16 @@ function getProjectBusinessFitScore(
 function getResumeSkillGroups(matchedSkills: string[]) {
   const prioritizedSkills = new Set(matchedSkills);
 
+  if (prioritizedSkills.has("Excel")) {
+    prioritizedSkills.add("XLOOKUP");
+    prioritizedSkills.add("PivotTables");
+    prioritizedSkills.add("PivotCharts");
+  }
+
   return [
     buildSkillGroup("Programming", ["Python", "SQL"], prioritizedSkills),
-    buildSkillGroup("Visualization", ["Power BI", "Tableau", "Excel"], prioritizedSkills),
+    buildSkillGroup("Excel", ["Excel", "XLOOKUP", "PivotTables", "PivotCharts"], prioritizedSkills),
+    buildSkillGroup("Visualization", ["Power BI", "Tableau"], prioritizedSkills),
     buildSkillGroup("Analytics", [
       "EDA",
       "Statistical Modeling",
@@ -1515,10 +1570,58 @@ function getJobEvidenceText(application: ApplicationDraft) {
   return `${application.role} ${canonicalNotes} ${application.source} ${application.jobUrl}`;
 }
 
-function getPrioritizedExperience() {
+function getPrioritizedExperience(
+  application: ApplicationDraft,
+  keywordGate: ReturnType<typeof buildKeywordGate>,
+) {
   const experience = profile.experience.filter((item) => !item.organization.toLowerCase().includes("ameritas"));
+  const job = getJobEvidenceText(application);
+  const weightedTerms = keywordGate.evidenceMatches.flatMap((match) => [
+    match.label,
+    match.resumeTerm ?? "",
+    ...match.jobTerms,
+  ]);
 
-  return experience.sort((left, right) => getExperienceResumeOrder(left) - getExperienceResumeOrder(right));
+  return experience.sort((left, right) => {
+    const relevanceDifference =
+      getExperienceCalibrationBoost(right, application) + scoreTextForSearch(
+        `${right.organization} ${right.role} ${right.focus.join(" ")}`,
+        job,
+        weightedTerms,
+      ) - (
+        getExperienceCalibrationBoost(left, application) + scoreTextForSearch(
+        `${left.organization} ${left.role} ${left.focus.join(" ")}`,
+        job,
+        weightedTerms,
+        )
+      );
+
+    if (relevanceDifference !== 0) return relevanceDifference;
+
+    return getExperienceResumeOrder(left) - getExperienceResumeOrder(right);
+  });
+}
+
+function getExperienceCalibrationBoost(
+  item: { organization: string },
+  application: ApplicationDraft,
+) {
+  const role = normalizeKeywordText(application.role);
+  const isItReportingRole =
+    containsNormalizedPhrase(role, "it data analyst") ||
+    containsNormalizedPhrase(role, "data reporting analyst");
+
+  if (!isItReportingRole) return 0;
+
+  const organization = normalizeKeywordText(item.organization);
+
+  if (organization.includes("university of nebraska")) return 1000;
+  if (organization.includes("agfirst farm credit bank")) return 900;
+  if (organization.includes("dallas data science academy")) return 800;
+  if (organization.includes("thales group")) return 300;
+  if (organization.includes("benedict college")) return 200;
+
+  return 0;
 }
 
 function getExperienceResumeOrder(item: { endYear?: number; resumeOrder?: number; startYear?: number }) {

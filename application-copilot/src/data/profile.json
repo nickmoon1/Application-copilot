@@ -26,8 +26,8 @@
   "skills": {
     "programming": ["Python", "Pandas", "NumPy", "Scikit-learn", "PyCaret", "NLTK", "SQL"],
     "machineLearning": ["Regression", "Classification", "Time Series Forecasting", "NLP", "Model Evaluation", "Prophet", "PyTorch"],
-    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting", "Financial Analytics", "Public Data Analysis"],
-    "visualization": ["Power BI", "Tableau", "Excel", "Matplotlib", "Dashboard Development"],
+    "analytics": ["EDA", "Data Cleaning", "Feature Engineering", "Statistical Modeling", "Predictive Analytics", "Forecasting", "KPI Reporting", "Financial Analytics", "Public Data Analysis", "Reporting Dependencies", "Requirements Analysis", "Program Support"],
+    "visualization": ["Power BI", "Tableau", "Excel", "XLOOKUP", "PivotTables", "PivotCharts", "Matplotlib", "Dashboard Development"],
     "platforms": ["Azure", "Databricks", "Snowflake", "Linux"],
     "dataEngineering": ["Data Pipelines", "Data Validation", "Data Quality Checks", "Failover Testing", "SQLite"]
   },
@@ -39,6 +39,8 @@
     "Maintained real-time transportation data pipelines processing 100+ sensor inputs.",
     "Diagnosed and resolved 50+ system and data issues using SQL, Python, and Linux.",
     "Improved data processing efficiency by 30% through structured cleaning and validation.",
+    "Analyzed an enterprise reporting library at AgFirst Farm Credit Bank to identify reports affected by a core loan-accounting system replacement.",
+    "Documented reporting dependencies and affected assets to support system-transition planning in an Agile environment.",
     "Created Tableau dashboards and reports for non-technical stakeholders.",
     "Built a CFPB consumer complaint analytics workflow using Python, SQL, SQLite, and dashboard metrics to analyze financial product trends, response outcomes, and Texas complaint patterns.",
     "Taught Python fundamentals and mentored applied analytics and chatbot development projects."
@@ -101,13 +103,23 @@
       "focus": ["Survey and educational datasets", "Python", "SQL", "Data validation", "Visualization"]
     },
     {
+      "role": "IT Application Development & Support Intern",
+      "organization": "AgFirst Farm Credit Bank",
+      "location": "Columbia, SC",
+      "dates": "2019 - 2020",
+      "startYear": 2019,
+      "endYear": 2020,
+      "resumeOrder": 5,
+      "focus": ["Enterprise reporting library", "Reporting dependencies", "System transition", "Requirements analysis", "Agile collaboration"]
+    },
+    {
       "role": "IT Security & Data Operations Intern",
       "organization": "Ameritas Life Insurance",
       "location": "Lincoln, NE",
       "dates": "2021 - 2022",
       "startYear": 2021,
       "endYear": 2022,
-      "resumeOrder": 5,
+      "resumeOrder": 6,
       "focus": ["Secure data ingestion", "Access controls", "Governance processes", "Operational reporting"]
     },
     {
@@ -122,7 +134,6 @@
     }
   ],
   "education": [
-    "MS Information Systems and Business Analytics, Park University, Expected 2027",
     "MS Computer Science, University of Nebraska-Lincoln, 2022",
     "BS Computer Science, Benedict College, 2020"
   ],
