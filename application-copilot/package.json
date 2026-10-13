@@ -16,6 +16,7 @@
     "db:legacy:backup": "node scripts/backup-sqlite.mjs",
     "db:import:legacy": "node scripts/import-sqlite-to-postgres.mjs",
     "db:verify-cutover": "node scripts/verify-postgres-cutover.mjs",
+    "db:verify-health": "node scripts/verify-postgres-cutover.mjs --health-only",
     "test:db-import": "node --test scripts/test-sqlite-snapshot.mjs"
   },
   "dependencies": {

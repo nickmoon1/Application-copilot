@@ -16,21 +16,36 @@ function latestBackup() {
     .sort((left, right) => statSync(right).mtimeMs - statSync(left).mtimeMs)[0];
 }
 
-const backup = process.argv[2] ?? latestBackup();
-if (!backup) {
+const healthOnly = process.argv.includes("--health-only");
+const backupArgument = process.argv.slice(2).find((argument) => argument !== "--health-only");
+const backup = backupArgument ?? latestBackup();
+if (!healthOnly && !backup) {
   throw new Error("No SQLite backup found. Pass a backup path to db:verify-cutover.");
 }
-const filename = resolve(backup);
-if (!existsSync(filename)) throw new Error("The requested SQLite backup does not exist.");
+const filename = backup ? resolve(backup) : undefined;
+if (!healthOnly && !existsSync(filename)) {
+  throw new Error("The requested SQLite backup does not exist.");
+}
 if (!process.env.DATABASE_URL?.startsWith("postgres")) {
   throw new Error("DATABASE_URL must point to PostgreSQL before cutover verification.");
 }
 
-const snapshot = readSqliteSnapshot(filename);
+const snapshot = healthOnly ? [] : readSqliteSnapshot(filename);
 const { PrismaClient } = await import("../src/generated/prisma/index.js");
 const client = new PrismaClient();
 
 try {
+  if (healthOnly) {
+    const currentCounts = [
+      ["Application", await client.application.count()],
+      ["PassedDiscoveredJob", await client.passedDiscoveredJob.count()],
+      ["InvalidDiscoveredJob", await client.invalidDiscoveredJob.count()],
+    ];
+    for (const [table, count] of currentCounts) {
+      console.log(`${table}: ${count} records readable`);
+    }
+  }
+
   for (const entry of snapshot) {
     const current = await client[entry.model].findMany();
     if (!isDeepStrictEqual(canonicalRows(entry.rows, entry.key), canonicalRows(current, entry.key))) {
