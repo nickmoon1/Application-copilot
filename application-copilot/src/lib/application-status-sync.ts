@@ -23,6 +23,8 @@ export async function syncApplicationStatuses() {
       pullNumber: application.prNumber,
     });
 
+    if (!status) continue;
+
     if (status !== application.status) {
       await prisma.application.update({
         where: {
@@ -44,11 +46,19 @@ type FetchPullStatusInput = {
 };
 
 async function fetchPullStatus({ octokit, owner, repo, pullNumber }: FetchPullStatusInput) {
-  const { data: pull } = await octokit.rest.pulls.get({
-    owner,
-    repo,
-    pull_number: pullNumber,
-  });
+  let pull;
+
+  try {
+    const response = await octokit.rest.pulls.get({
+      owner,
+      repo,
+      pull_number: pullNumber,
+    });
+    pull = response.data;
+  } catch (error) {
+    if (isNotFoundError(error)) return undefined;
+    throw error;
+  }
 
   if (pull.merged) return "MERGED";
   if (pull.state === "closed") return "INVALID_JOB";
@@ -71,4 +81,13 @@ async function fetchPullStatus({ octokit, owner, repo, pullNumber }: FetchPullSt
   if (latestReviews.some((review) => review.state === "APPROVED")) return "APPROVED";
 
   return "PENDING_REVIEW";
+}
+
+function isNotFoundError(error: unknown): error is { status: 404 } {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    "status" in error &&
+    error.status === 404
+  );
 }
