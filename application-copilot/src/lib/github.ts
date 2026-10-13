@@ -1,5 +1,6 @@
 import { createAppAuth } from "@octokit/auth-app";
 import { Octokit } from "octokit";
+import { assertSafeGitHubWriteTarget } from "@/lib/runtime-environment";
 
 export type GitHubConfig = {
   appId: string | undefined;
@@ -34,6 +35,8 @@ export function requireGitHubConfig() {
   if (missing.length > 0) {
     throw new Error(`Missing GitHub config: ${missing.join(", ")}`);
   }
+
+  assertSafeGitHubWriteTarget(config.repo);
 
   return {
     appId: config.appId,

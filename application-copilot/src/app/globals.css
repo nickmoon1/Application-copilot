@@ -36,6 +36,28 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+.environment-banner {
+  min-height: 34px;
+  padding: 8px 18px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: #9b3f12;
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-align: center;
+}
+
+.environment-banner span {
+  font-weight: 400;
+}
+
 button {
   font: inherit;
 }

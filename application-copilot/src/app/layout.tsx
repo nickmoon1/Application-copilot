@@ -1,8 +1,11 @@
 import type { Metadata } from "next";
+import { getAppEnvironment } from "@/lib/runtime-environment";
 import "./globals.css";
 
+const appEnvironment = getAppEnvironment();
+
 export const metadata: Metadata = {
-  title: "Application Copilot",
+  title: appEnvironment === "staging" ? "Application Copilot Staging" : "Application Copilot",
   description: "GitHub-gated job application workflow for Dallas-area data roles.",
 };
 
@@ -13,7 +16,14 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        {appEnvironment === "staging" && (
+          <div className="environment-banner" role="status">
+            STAGING ENVIRONMENT <span>Test data and staging-only GitHub PRs</span>
+          </div>
+        )}
+        {children}
+      </body>
     </html>
   );
 }
