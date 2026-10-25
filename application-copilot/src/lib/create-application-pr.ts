@@ -19,7 +19,7 @@ export async function createApplicationPr(request: Request) {
     const config = requireGitHubConfig();
     const octokit = getInstallationOctokit();
     const application = await enrichApplicationWithJobUrlAnalysis(await parseApplicationRequest(request));
-    const duplicateApplication = await findDuplicateApplication(application);
+    const duplicateApplication = await findDuplicateApplication(application, config.owner, config.repo);
 
     if (duplicateApplication && isBlockingDuplicateStatus(duplicateApplication.status)) {
       return NextResponse.json(
@@ -58,6 +58,12 @@ export async function createApplicationPr(request: Request) {
       repo: config.repo,
       ref: `refs/heads/${branchName}`,
       sha: baseRef.object.sha,
+    });
+    await waitForBranchReady({
+      octokit,
+      owner: config.owner,
+      repo: config.repo,
+      branch: branchName,
     });
 
     await createOrUpdateFile({
@@ -186,6 +192,8 @@ Review the files in this PR. The application should remain locked in the app unt
         notes: application.notes,
         prNumber: pull.number,
         prUrl: pull.html_url,
+        repoOwner: config.owner,
+        repoName: config.repo,
         branch: branchName,
         folder,
         status: "PENDING_REVIEW",
@@ -313,7 +321,11 @@ function appendAnalysisWarning(notes: string, warning: string) {
   ].filter(Boolean).join("\n\n");
 }
 
-async function findDuplicateApplication(application: Awaited<ReturnType<typeof parseApplicationRequest>>) {
+async function findDuplicateApplication(
+  application: Awaited<ReturnType<typeof parseApplicationRequest>>,
+  repoOwner: string,
+  repoName: string,
+) {
   const normalizedJobUrl = normalizeUrl(application.jobUrl);
 
   if (normalizedJobUrl) {
@@ -322,6 +334,8 @@ async function findDuplicateApplication(application: Awaited<ReturnType<typeof p
         jobUrl: {
           not: "",
         },
+        repoOwner,
+        repoName,
       },
       orderBy: {
         createdAt: "desc",
@@ -341,6 +355,8 @@ async function findDuplicateApplication(application: Awaited<ReturnType<typeof p
     where: {
       company: application.company,
       role: application.role,
+      repoOwner,
+      repoName,
     },
   });
 
@@ -507,4 +523,26 @@ async function getExistingFileSha({
 
 function isGitHubNotFound(error: unknown) {
   return typeof error === "object" && error !== null && "status" in error && error.status === 404;
+}
+
+async function waitForBranchReady({
+  octokit,
+  owner,
+  repo,
+  branch,
+}: Omit<CreateOrUpdateFileInput, "message" | "content" | "path">) {
+  for (let attempt = 0; attempt < 5; attempt += 1) {
+    try {
+      await octokit.rest.repos.getContent({
+        owner,
+        repo,
+        path: "",
+        ref: branch,
+      });
+      return;
+    } catch (error) {
+      if (!isGitHubNotFound(error) || attempt === 4) throw error;
+      await new Promise((resolve) => setTimeout(resolve, 250 * (attempt + 1)));
+    }
+  }
 }

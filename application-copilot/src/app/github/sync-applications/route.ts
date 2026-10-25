@@ -47,14 +47,22 @@ export async function POST(request: Request) {
     const folder = jobFile.filename.replace(/\/job\.json$/, "");
     const existingApplication = await prisma.application.findUnique({
       where: {
-        prNumber: pull.number,
+        repoOwner_repoName_prNumber: {
+          repoOwner: config.owner,
+          repoName: config.repo,
+          prNumber: pull.number,
+        },
       },
     });
     const nextStatus = existingApplication?.status === "SUBMITTED" ? existingApplication.status : status;
 
     await prisma.application.upsert({
       where: {
-        prNumber: pull.number,
+        repoOwner_repoName_prNumber: {
+          repoOwner: config.owner,
+          repoName: config.repo,
+          prNumber: pull.number,
+        },
       },
       update: {
         company: job.company,
@@ -65,6 +73,8 @@ export async function POST(request: Request) {
         matchScore: normalizeMatchScore(job.matchScore),
         notes: job.notes ?? "",
         prUrl: pull.html_url,
+        repoOwner: config.owner,
+        repoName: config.repo,
         branch: pull.head.ref,
         folder,
         status: nextStatus,
@@ -79,6 +89,8 @@ export async function POST(request: Request) {
         notes: job.notes ?? "",
         prNumber: pull.number,
         prUrl: pull.html_url,
+        repoOwner: config.owner,
+        repoName: config.repo,
         branch: pull.head.ref,
         folder,
         status: nextStatus,

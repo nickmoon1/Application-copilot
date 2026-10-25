@@ -282,7 +282,6 @@ function getUrgencyRank(urgency: JobRequirementAnalysis["timing"]["urgency"]) {
 
 function buildDiverseDailyQueue(jobs: DiscoveredJob[], limit: number, companyLimit: number) {
   const queue: DiscoveredJob[] = [];
-  const deferred: DiscoveredJob[] = [];
   const companyCounts = new Map<string, number>();
 
   for (const job of jobs) {
@@ -292,14 +291,7 @@ function buildDiverseDailyQueue(jobs: DiscoveredJob[], limit: number, companyLim
     if (queue.length < limit && companyCount < companyLimit) {
       queue.push(job);
       companyCounts.set(companyKey, companyCount + 1);
-    } else {
-      deferred.push(job);
     }
-  }
-
-  for (const job of deferred) {
-    if (queue.length >= limit) break;
-    queue.push(job);
   }
 
   return queue;
@@ -832,7 +824,7 @@ export default function DashboardClient({
         <section className="preferences" id="search-profile" aria-label="Search preferences">
           <div>
             <span>Roles</span>
-            <strong>Data Scientist, Data Analyst, Data Engineer, Business Analyst, Adjunct Professor</strong>
+            <strong>Data Analyst, Reporting Analyst, Business Analyst, IT Analyst, Teaching Assistant, Adjunct Professor</strong>
           </div>
           <div>
             <span>Preferred Area</span>
@@ -887,7 +879,7 @@ export default function DashboardClient({
                 </div>
                 <div>
                   <span>Ranking logic</span>
-                  <strong>Decoded fit, closing urgency, location, validation, source diversity</strong>
+                  <strong>Early-career fit, closing urgency, location, validation, max 2 per company</strong>
                 </div>
               </div>
 
@@ -925,6 +917,7 @@ export default function DashboardClient({
                           <div className="job-meta">
                             <span>{candidate.location}</span>
                             <span>{candidate.source}</span>
+                            <span>{candidate.employmentType.replaceAll("_", " ")}</span>
                             <span>Posted {formatDate(candidate.posted)}</span>
                           </div>
                         </div>

@@ -3,6 +3,8 @@ import { get as httpsGet } from "node:https";
 import { scorePortfolioFit, type PortfolioFit } from "@/lib/portfolio-fit";
 import { decodeJobRequirements, type JobRequirementAnalysis } from "@/lib/job-requirement-decoder";
 
+type EmploymentType = "FULL_TIME" | "CONTRACT" | "UNKNOWN" | "UNSUPPORTED";
+
 type JobSeed = {
   id: string;
   company: string;
@@ -14,6 +16,7 @@ type JobSeed = {
   summary: string;
   keywords: string[];
   workArrangement?: string;
+  employmentType?: EmploymentType;
 };
 
 export type DiscoveredJob = JobSeed & {
@@ -25,6 +28,7 @@ export type DiscoveredJob = JobSeed & {
   validationDetails: string;
   validationCheckedAt: string;
   notes: string;
+  employmentType: EmploymentType;
 };
 
 export type DiscoveryConnector = {
@@ -43,18 +47,15 @@ export type DiscoveryResult = {
   connectors: DiscoveryConnector[];
 };
 
-export const jobDecoderVersion = 4;
+export const jobDecoderVersion = 5;
 
 export const targetRoles = [
-  "data scientist",
   "data analyst",
-  "data engineer",
+  "reporting analyst",
   "business analyst",
+  "it analyst",
+  "teaching assistant",
   "adjunct professor",
-  "analytics",
-  "data governance",
-  "business intelligence",
-  "big data",
 ];
 
 export const targetLocations = [
@@ -90,18 +91,26 @@ const nttSearchUrls = [
   nttDataAnalyticsUrl,
   "https://careers.services.global.ntt/global/en/search-results?keywords=data",
   "https://careers.services.global.ntt/global/en/search-results?keywords=data%20analyst",
-  "https://careers.services.global.ntt/global/en/search-results?keywords=data%20engineer",
+  "https://careers.services.global.ntt/global/en/search-results?keywords=reporting%20analyst",
+  "https://careers.services.global.ntt/global/en/search-results?keywords=IT%20analyst",
   "https://careers.services.global.ntt/global/en/search-results?keywords=business%20analyst",
 ];
 const americanAirlinesCareersUrl = "https://jobs.aa.com/search/?q=data&locationsearch=Fort%20Worth%2C%20TX";
 const americanAirlinesRssUrls = [
-  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(data)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
-  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(data%20analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(reporting%20analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
   "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(business%20analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
-  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(data%20scientist)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
+  "https://jobs.aa.com/services/rss/job/?locale=en_US&keywords=(IT%20analyst)%20AND%20locationSearch:(Fort%20Worth,%20TX)",
 ];
 const adzunaCareersUrl = "https://www.adzuna.com/";
-const adzunaSearchTerms = ["data analyst", "data scientist", "business analyst", "data engineer"];
+const adzunaSearchTerms = [
+  "data analyst",
+  "reporting analyst",
+  "business analyst",
+  "IT analyst",
+  "teaching assistant",
+  "adjunct professor",
+];
 const remotiveCareersUrl = "https://remotive.com/remote-jobs";
 const remotiveApiUrl = "https://remotive.com/api/remote-jobs?search=data";
 
@@ -293,7 +302,9 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
     .filter((job) => isTargetLocationCandidate(job) && isTargetRole(job.role, job.keywords, job.summary))
     .sort((a, b) => scorePortfolioFit(b).score - scorePortfolioFit(a).score);
   const candidates = (await Promise.all(matchedSeeds.map(enrichJob)))
-    .filter((candidate) => candidate.portfolioFit.tier !== "LOW");
+    .filter((candidate) => candidate.portfolioFit.tier !== "LOW")
+    .filter(isEarlyCareerCandidate)
+    .filter((candidate) => candidate.employmentType !== "UNSUPPORTED");
 
   candidates
     .sort((a, b) => b.matchScore - a.matchScore);
@@ -403,6 +414,8 @@ type AdzunaJob = {
   redirect_url?: string;
   company?: { display_name?: string };
   location?: { display_name?: string };
+  contract_time?: string;
+  contract_type?: string;
 };
 
 function parseAdzunaJobs(payload: string): JobSeed[] {
@@ -431,6 +444,7 @@ function parseAdzunaJobs(payload: string): JobSeed[] {
         posted: normalizeDate(job.created ?? ""),
         summary: `Live Adzuna result for ${role} at ${company} in ${location}. ${description}`.trim(),
         keywords: inferKeywords(`${role} ${description}`),
+        employmentType: normalizeEmploymentType(`${job.contract_time ?? ""} ${job.contract_type ?? ""} ${description}`),
       }];
     });
   } catch {
@@ -467,6 +481,7 @@ type RemotiveJob = {
   publication_date?: string;
   url?: string;
   tags?: string[];
+  job_type?: string;
 };
 
 function parseRemotiveJobs(payload: string): JobSeed[] {
@@ -497,6 +512,7 @@ function parseRemotiveJobs(payload: string): JobSeed[] {
         summary: `Remote role listed by Remotive for ${role} at ${company}. ${description}`.trim(),
         keywords: Array.from(new Set([...inferKeywords(`${role} ${description}`), ...tags])).slice(0, 16),
         workArrangement: `Remote - ${location}`,
+        employmentType: normalizeEmploymentType(`${job.job_type ?? ""} ${description}`),
       }];
     });
   } catch {
@@ -870,6 +886,7 @@ async function enrichJob(job: JobSeed): Promise<DiscoveredJob> {
 
   return {
     ...job,
+    employmentType: job.employmentType ?? normalizeEmploymentType(`${job.summary} ${validation.jobText}`),
     locationFit,
     matchScore,
     portfolioFit,
@@ -1235,7 +1252,7 @@ function hasUsUrlSignal(jobUrl: string) {
 function isTargetRole(role: string, keywords: string[], summary = "") {
   const searchable = `${role} ${keywords.join(" ")} ${summary}`.toLowerCase();
   const normalizedRole = role.toLowerCase();
-  const explicitTargetTitle = ["data", "analytics", "analyst", "business intelligence", "reporting", "operations research", "adjunct", "instructor"]
+  const explicitTargetTitle = ["data analyst", "reporting analyst", "business analyst", "it analyst", "teaching assistant", "adjunct", "instructor"]
     .some((signal) => normalizedRole.includes(signal));
   const excludedTitle = ["office assistant", "content reviewer", "content moderator", "devops", "software engineer", "developer", "data annotation", "collection"]
     .some((signal) => normalizedRole.includes(signal));
@@ -1254,9 +1271,43 @@ function isTargetRole(role: string, keywords: string[], summary = "") {
     "data pipeline",
     "data quality",
     "business intelligence",
+    "prepare reports",
+    "reporting requirements",
+    "information technology support",
+    "assist students",
   ];
 
   return targetRoles.some((targetRole) => searchable.includes(targetRole)) || workSignals.some((signal) => searchable.includes(signal));
+}
+
+function isEarlyCareerCandidate(candidate: DiscoveredJob) {
+  const normalizedRole = candidate.role.toLowerCase();
+  const seniorTitleSignals = [
+    /\bsenior\b/,
+    /\bsr\.?\b/,
+    /\bprincipal\b/,
+    /\blead\b/,
+    /\bmanager\b/,
+    /\bdirector\b/,
+    /\blevel\s+(?:iii|iv|3|4)\b/,
+    /\b(?:analyst|engineer)\s+(?:iii|iv|3|4)\b/,
+  ];
+
+  if (seniorTitleSignals.some((pattern) => pattern.test(normalizedRole))) {
+    return false;
+  }
+
+  return candidate.requirementAnalysis.requiredYears === null ||
+    candidate.requirementAnalysis.requiredYears <= 3;
+}
+
+function normalizeEmploymentType(value: string): EmploymentType {
+  const normalized = value.toLowerCase().replace(/[_-]+/g, " ");
+
+  if (/\b(contract|contractor|contract to hire|c2c|1099)\b/.test(normalized)) return "CONTRACT";
+  if (/\b(full time|fulltime|permanent)\b/.test(normalized)) return "FULL_TIME";
+  if (/\b(part time|parttime|internship|intern|temporary|seasonal|volunteer)\b/.test(normalized)) return "UNSUPPORTED";
+  return "UNKNOWN";
 }
 
 function inferKeywords(role: string) {

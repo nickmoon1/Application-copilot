@@ -4,10 +4,11 @@
   "phone": "(803) 457-9978",
   "location": "Dallas, TX",
   "targetRoles": [
-    "Data Scientist",
     "Data Analyst",
-    "Data Engineer",
+    "Reporting Analyst",
     "Business Analyst",
+    "IT Analyst",
+    "Teaching Assistant",
     "Adjunct Professor"
   ],
   "preferredLocations": [

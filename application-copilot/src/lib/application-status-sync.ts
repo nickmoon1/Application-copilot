@@ -2,8 +2,11 @@ import { prisma } from "@/lib/db";
 import { getInstallationOctokit, requireGitHubConfig } from "@/lib/github";
 
 export async function syncApplicationStatuses() {
+  const config = requireGitHubConfig();
   const applications = await prisma.application.findMany({
     where: {
+      repoOwner: config.owner,
+      repoName: config.repo,
       status: {
         notIn: ["SUBMITTED", "INVALID_JOB", "NOT_APPLYING"],
       },
@@ -12,7 +15,6 @@ export async function syncApplicationStatuses() {
 
   if (applications.length === 0) return;
 
-  const config = requireGitHubConfig();
   const octokit = getInstallationOctokit();
 
   for (const application of applications) {

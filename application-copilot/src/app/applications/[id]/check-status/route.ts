@@ -20,8 +20,14 @@ export async function POST(request: Request, { params }: Params) {
     return NextResponse.redirect(new URL("/#github-reviews", request.url), 303);
   }
 
+  const config = requireGitHubConfig();
+
+  if (application.repoOwner !== config.owner || application.repoName !== config.repo) {
+    return NextResponse.redirect(new URL(`/?application=${id}#application-detail`, request.url), 303);
+  }
+
   if (application.status !== "SUBMITTED" && application.status !== "INVALID_JOB" && application.status !== "NOT_APPLYING") {
-    const status = await fetchPullStatus(application.prNumber);
+    const status = await fetchPullStatus(application.prNumber, config);
 
     await prisma.application.update({
       where: {
@@ -36,8 +42,7 @@ export async function POST(request: Request, { params }: Params) {
   return NextResponse.redirect(new URL(`/?application=${id}#application-detail`, request.url), 303);
 }
 
-async function fetchPullStatus(pullNumber: number) {
-  const config = requireGitHubConfig();
+async function fetchPullStatus(pullNumber: number, config: ReturnType<typeof requireGitHubConfig>) {
   const octokit = getInstallationOctokit();
   const { data: pull } = await octokit.rest.pulls.get({
     owner: config.owner,

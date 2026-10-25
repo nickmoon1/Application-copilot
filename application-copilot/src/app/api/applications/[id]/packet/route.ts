@@ -38,9 +38,20 @@ export async function GET(_request: Request, { params }: Params) {
     }
 
     const config = requireGitHubConfig();
+    const files = Object.fromEntries(packetFiles.map((filename) => [filename, ""]));
+
+    if (application.repoOwner !== config.owner || application.repoName !== config.repo) {
+      return NextResponse.json({
+        applicationId: application.id,
+        branch: application.branch,
+        folder: application.folder,
+        files,
+        unavailableReason: "This historical application packet belongs to a different GitHub repository.",
+      });
+    }
+
     const octokit = getInstallationOctokit();
     const folder = application.folder || getApplicationFolder(application.prUrl);
-    const files: Record<string, string> = {};
 
     for (const filename of packetFiles) {
       const content = await readRepoFile({

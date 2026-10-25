@@ -84,7 +84,7 @@ const familySignals: Record<JobFamily, string[]> = {
   DATA_SCIENCE: ["data scientist", "data science", "machine learning", "predictive model", "statistical model", "classification", "regression", "forecasting", "python"],
   DATA_ENGINEERING: ["data engineer", "data engineering", "data pipeline", "etl", "data warehouse", "data architecture", "spark", "dbt", "databricks", "snowflake"],
   BUSINESS_ANALYSIS: ["business analyst", "business analysis", "business requirements", "requirements gathering", "process improvement", "user stories", "stakeholder", "business process"],
-  TEACHING: ["teach", "teaching", "instructor", "adjunct", "curriculum", "students", "faculty", "course"],
+  TEACHING: ["teach", "teaching", "teaching assistant", "instructor", "adjunct", "curriculum", "students", "faculty", "course"],
   OTHER: [],
 };
 
@@ -226,7 +226,7 @@ export function getJobFamilyLabel(family: JobFamily) {
 
 function classifyJobFamily(role: string, description: string) {
   const excludedTitles = ["office assistant", "content reviewer", "content moderator", "devops", "software engineer", "developer", "data annotation", "collection"];
-  const explicitTargetTitle = ["data", "analytics", "analyst", "business intelligence", "reporting", "operations research", "adjunct", "instructor"]
+  const explicitTargetTitle = ["data", "analytics", "analyst", "business intelligence", "reporting", "operations research", "teaching assistant", "adjunct", "instructor"]
     .some((signal) => role.includes(normalize(signal)));
 
   if (excludedTitles.some((signal) => role.includes(normalize(signal))) && !explicitTargetTitle) {
