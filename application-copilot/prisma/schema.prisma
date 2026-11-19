@@ -39,6 +39,20 @@ model DiscoveryRun {
   updatedAt DateTime @updatedAt
 }
 
+model LinkedInAlertJob {
+  id            String   @id
+  linkedinJobId String   @unique
+  company       String
+  role          String
+  location      String
+  jobUrl        String   @unique
+  postedAt      DateTime
+  firstSeenAt   DateTime @default(now())
+  lastSeenAt    DateTime @updatedAt
+
+  @@index([lastSeenAt])
+}
+
 model PassedDiscoveredJob {
   jobId      String   @id
   reason     String

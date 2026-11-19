@@ -2,6 +2,7 @@ import { get as httpGet } from "node:http";
 import { get as httpsGet } from "node:https";
 import { scorePortfolioFit, type PortfolioFit } from "@/lib/portfolio-fit";
 import { decodeJobRequirements, type JobRequirementAnalysis } from "@/lib/job-requirement-decoder";
+import { prisma } from "@/lib/db";
 
 type EmploymentType = "FULL_TIME" | "CONTRACT" | "UNKNOWN" | "UNSUPPORTED";
 
@@ -47,7 +48,7 @@ export type DiscoveryResult = {
   connectors: DiscoveryConnector[];
 };
 
-export const jobDecoderVersion = 5;
+export const jobDecoderVersion = 6;
 
 export const targetRoles = [
   "data analyst",
@@ -113,6 +114,7 @@ const adzunaSearchTerms = [
 ];
 const remotiveCareersUrl = "https://remotive.com/remote-jobs";
 const remotiveApiUrl = "https://remotive.com/api/remote-jobs?search=data";
+const linkedInJobsUrl = "https://www.linkedin.com/jobs/";
 
 const nttPriorityJobs: JobSeed[] = [
   {
@@ -276,6 +278,7 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
     americanAirlinesDiscovery,
     adzunaDiscovery,
     remotiveDiscovery,
+    linkedInAlertDiscovery,
   ] = await Promise.all([
     discoverAttJobs(),
     discoverCitiJobs(),
@@ -283,6 +286,7 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
     discoverAmericanAirlinesJobs(),
     discoverAdzunaJobs(),
     discoverRemotiveJobs(),
+    discoverLinkedInAlertJobs(),
   ]);
   const citiJobs = citiDiscovery.jobs.length > 0 ? citiDiscovery.jobs : citiSeedJobs;
   const deloitteDiscovery = discoverDeloitteJobs();
@@ -296,6 +300,7 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
     ...jpmorganChaseDiscovery.jobs,
     ...adzunaDiscovery.jobs,
     ...remotiveDiscovery.jobs,
+    ...linkedInAlertDiscovery.jobs,
     ...fallbackJobs,
   ]);
   const matchedSeeds = seeds
@@ -364,7 +369,50 @@ export async function discoverJobs(): Promise<DiscoveryResult> {
         mode: remotiveDiscovery.mode,
         found: remotiveDiscovery.jobs.length,
       },
+      {
+        name: "LinkedIn Job Alerts",
+        url: linkedInJobsUrl,
+        mode: linkedInAlertDiscovery.mode,
+        found: linkedInAlertDiscovery.jobs.length,
+      },
     ],
+  };
+}
+
+async function discoverLinkedInAlertJobs() {
+  const recentThreshold = new Date();
+  recentThreshold.setDate(recentThreshold.getDate() - 14);
+
+  const rows = await prisma.linkedInAlertJob.findMany({
+    where: {
+      lastSeenAt: {
+        gte: recentThreshold,
+      },
+    },
+    orderBy: {
+      postedAt: "desc",
+    },
+    take: 50,
+  });
+  const jobs: JobSeed[] = rows.map((job) => ({
+    id: job.id,
+    company: job.company,
+    role: job.role,
+    location: job.location,
+    source: "LinkedIn Job Alerts",
+    jobUrl: job.jobUrl,
+    posted: job.postedAt.toISOString().slice(0, 10),
+    summary: `LinkedIn job alert for ${job.role} at ${job.company} in ${job.location}.`,
+    keywords: inferKeywords(`${job.role} ${job.company}`),
+  }));
+
+  return {
+    jobs,
+    mode: jobs.length > 0
+      ? "email_alerts"
+      : process.env.LINKEDIN_ALERT_INGEST_SECRET?.trim()
+        ? "email_alerts_empty"
+        : "not_configured",
   };
 }
 

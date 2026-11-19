@@ -1,6 +1,10 @@
 import { getToken } from "next-auth/jwt";
 import { NextRequest, NextResponse } from "next/server";
-import { isAllowedGitHubId, isAuthorizedDiscoveryCron } from "@/lib/authorization";
+import {
+  isAllowedGitHubId,
+  isAuthorizedDiscoveryCron,
+  isAuthorizedLinkedInAlertImport,
+} from "@/lib/authorization";
 
 const PUBLIC_PATHS = ["/sign-in", "/api/auth"];
 
@@ -12,6 +16,14 @@ export async function proxy(request: NextRequest) {
   }
 
   if (pathname === "/api/jobs/discover" && request.method === "POST" && isAuthorizedDiscoveryCron(request)) {
+    return NextResponse.next();
+  }
+
+  if (
+    pathname === "/api/jobs/linkedin-alerts" &&
+    request.method === "POST" &&
+    isAuthorizedLinkedInAlertImport(request)
+  ) {
     return NextResponse.next();
   }
 

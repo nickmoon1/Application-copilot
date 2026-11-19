@@ -24,3 +24,9 @@ export function isAuthorizedDiscoveryCron(request: Request) {
 
   return Boolean(cronSecret) && request.headers.get("authorization") === `Bearer ${cronSecret}`;
 }
+
+export function isAuthorizedLinkedInAlertImport(request: Request) {
+  const ingestSecret = process.env.LINKEDIN_ALERT_INGEST_SECRET?.trim();
+
+  return Boolean(ingestSecret) && request.headers.get("authorization") === `Bearer ${ingestSecret}`;
+}

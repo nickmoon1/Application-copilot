@@ -17,7 +17,8 @@
     "db:import:legacy": "node scripts/import-sqlite-to-postgres.mjs",
     "db:verify-cutover": "node scripts/verify-postgres-cutover.mjs",
     "db:verify-health": "node scripts/verify-postgres-cutover.mjs --health-only",
-    "test:db-import": "node --test scripts/test-sqlite-snapshot.mjs"
+    "test:db-import": "node --test scripts/test-sqlite-snapshot.mjs",
+    "test:linkedin-alerts": "node --test scripts/test-linkedin-alert-parser.mjs"
   },
   "dependencies": {
     "@octokit/auth-app": "^8.2.0",
